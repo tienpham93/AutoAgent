@@ -1,0 +1,22 @@
+{
+  "name": "AutoAgent",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^24.10.1",
+    "playwright": "^1.56.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "debug": "ts-node src/remotePlaywright.ts",
+    "start:autoagent": "ts-node src/autoAgent.ts",
+    "start": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  }
+}

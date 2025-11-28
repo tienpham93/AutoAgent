@@ -1,0 +1,37 @@
+import { GenerativeModel, ChatSession, GoogleGenerativeAI } from "@google/generative-ai";
+
+export class BaseAgent {
+    protected model: GenerativeModel;
+    protected chat: ChatSession;
+
+    constructor(apiKey: string, model: string, systemInstruction: string) {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        this.model = genAI.getGenerativeModel({
+            model: model,
+            systemInstruction: systemInstruction
+        });
+        this.chat = this.model.startChat();
+    }
+
+    protected async sendToLLM(message: string): Promise<string> {
+        const maxRetries = 5;
+        let attempt = 0;
+        while (attempt < maxRetries) {
+            try {
+                const result = await this.chat.sendMessage(message);
+                return result.response.text();
+            } catch (error: any) {
+                // Check if it is a Quota/Rate Limit error
+                if (error.message.includes("429") || error.message.includes("503") || error.message.includes("Too Many Requests")) {
+                    console.log("[🤖🤖🤖] >> ⏳ Waiting 5s to respect quota...");
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    attempt++; // Increment attempt counter
+                } else {
+                    console.error(`[🤖🤖🤖] >> ☠️ Error:`, error);
+                    break; // Exit retry loop on non-quota errors
+                }
+            }
+        }
+        return "{}"; // Return empty JSON on fail
+    }
+}
