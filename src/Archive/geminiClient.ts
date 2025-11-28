@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 const API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = process.env.MODEL_NAME || "gemini-2.5-pro";
+const MODEL = process.env.MODEL_NAME || "gemini-2.5-flash";
 
 type AgentOptions = {
     persona?: string;

@@ -7,7 +7,7 @@ import { ExtractorAgent } from './Agents/ExtractorAgent';
 dotenv.config();
 
 const API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = process.env.MODEL_NAME || "gemini-2.5-pro";
+const MODEL = process.env.MODEL_NAME || "gemini-2.5-flash";
 const TESTS_DIR = process.cwd() + '/src/__Tests__';
 const RESULTS_DIR = process.cwd() + 'output';
 
@@ -21,23 +21,22 @@ async function main() {
     const files = fs.readdirSync(TESTS_DIR).filter(f => f.endsWith('.md'));
 
     for (const file of files) {
-        // 1. READ & PARSE
+        // 1. READ & PARSE TESTCASE
         const rawMarkdown = fs.readFileSync(path.join(TESTS_DIR, file), 'utf-8');
         console.log("[🚁🚁🚁] >> 🏗️ Parsing test case...");
 
         let testCase: any;
         try {
             testCase = await extractor.parse(rawMarkdown);
-            console.log(`[🚁🚁🚁] >> ✅ Loaded successfully: ` + JSON.stringify(testCase));
+            console.log(`[🚁🚁🚁] >> ✅ Loaded successfully:\n${JSON.stringify(testCase, null, 2)}`);
         } catch (error) {
             console.error(`[🚁🚁🚁] >> ❌ Failed to prase "${file}":`, error);
         }
 
 
-        // 2. EXECUTION PHASE
+        // 2. EXECUTION TESTCASE
         await autoBot.startBrowser();
 
-        // Reset logs for this specific test run
         autoBot.actionLogs = [];
         for (const step of testCase.steps) {
             try {
@@ -47,8 +46,6 @@ async function main() {
             }
 
         }
-
-
         await autoBot.stopBrowser();
 
         // 3. POST-PROCESS PREPARATION (Save Data)
@@ -61,7 +58,10 @@ async function main() {
             timestamp: new Date().toISOString()
         };
 
-        const reportPath = path.join(RESULTS_DIR, `${file.replace('.md', '')}_result.json`);
+        if (!fs.existsSync(RESULTS_DIR)) {
+            fs.mkdirSync(RESULTS_DIR, { recursive: true });
+        }
+        const reportPath = path.join(RESULTS_DIR, `${file.replace('.md', '')}.json`);
         fs.writeFileSync(reportPath, JSON.stringify(reportData, null, 2));
 
         console.log(`   💾 Execution data saved to: results/${path.basename(reportPath)}`);

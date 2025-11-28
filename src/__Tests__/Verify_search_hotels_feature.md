@@ -7,12 +7,13 @@ Verify that a registered user can successfully log in with valid credentials.
 
 ### 👣 Steps 👣
 1. Go to "https://www.agoda.com/"
-2. Click "Hotels" tab on tab list
-3. Enter "Hong Kong" to "Enter a destination or property" input field
-4. Select the 1st **Suggestion** from the suggestion list
-5. Select 7 days from now in calendar
-6. Select 2 Room, 4 Adults and 0 Children
-7. Click Search button
+2. Enter "Hong Kong" to "Enter a destination or property" input field
+3. Select the 1st **Suggestion** from the suggestion list
+4. Select 8th Dec to 14th Dec from Calendar
+5. Select 2 Room, 4 Adults and 0 Children
+6. Click Search button
+7. There a new tab will be opened, switch to that tab
+8. Set page waits for 20s
 
 ### ✅ Expected Result ✅
 
@@ -25,3 +26,5 @@ Verify that a registered user can successfully log in with valid credentials.
  📌 **Suggestion** can refer to locator data-element-name="search-box-sub-suggestion"
 
  📌 **Location** can refer to locator data-selenium="area-city-text"
+
+---

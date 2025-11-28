@@ -33,7 +33,7 @@ export default defineConfig({
   },
 
   testMatch: '**/*.spec.ts',
-  timeout: 900000,
+  timeout: 300000,
 
   /* Configure projects for major browsers */
   projects: [

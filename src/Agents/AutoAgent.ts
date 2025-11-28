@@ -1,5 +1,6 @@
 import { Browser, Page, chromium } from "playwright";
 import { BaseAgent } from "./BaseAgent";
+import config from '../../playwright.config';
 
 export class AutoAgent extends BaseAgent {
     private browser: Browser | any;
@@ -12,7 +13,7 @@ export class AutoAgent extends BaseAgent {
             model,
             `You are a Playwright Automation Agent.
             INPUT: Global Notes, Accessibility Tree, Current Step.
-            OUTPUT: Valid Playwright Code ONLY. No explanations.
+            OUTPUT: Valid Playwright Code ONLY. The Code must be Javascript. No explanations.
             Assume 'page' exists.`
         );
     }
@@ -21,6 +22,13 @@ export class AutoAgent extends BaseAgent {
         this.browser = await chromium.launch({ headless: false });
         const context = await this.browser.newContext();
         this.page = await context.newPage();
+    
+        // Load config 
+        const globalTimeout = config.use?.actionTimeout || 30000;
+        const navTimeout = config.use?.navigationTimeout || 30000;
+    
+        this.page.setDefaultTimeout(globalTimeout);
+        this.page.setDefaultNavigationTimeout(navTimeout);
     }
 
     public async stopBrowser() {
@@ -39,9 +47,29 @@ export class AutoAgent extends BaseAgent {
         return clean.trim();
     }
     
+    private async waitForUIStability(timeout = 10000): Promise<string> {                
+        const startTime = Date.now();
+        let previousSnapshot = await this.getElementsTree();
+
+        // Check the tree every 1s until timeout
+        while (Date.now() - startTime < timeout) {
+            await new Promise(r => setTimeout(r, 1000));
+            const currentSnapshot = await this.getElementsTree();
+
+            if (previousSnapshot === currentSnapshot) {
+                // Tree hasn't changed
+                return currentSnapshot;
+            }
+
+            // Tree changed
+            previousSnapshot = currentSnapshot;
+        }
+
+        return previousSnapshot;
+    }
 
     public async executeStep(step: string, contextNotes: string): Promise<void> {        
-        const pageElements = await this.getElementsTree();
+        const pageElements = await this.waitForUIStability();
         
         const fullPrompt = `
             CURRENT PAGE STATE (JSON):
