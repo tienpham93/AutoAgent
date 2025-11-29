@@ -1,30 +1,26 @@
-import { Browser, Page, chromium } from "playwright";
+import { Browser, Page, chromium, BrowserContext } from "playwright";
 import { BaseAgent } from "./BaseAgent";
 import config from '../../playwright.config';
-import { Context } from "vm";
-import path from "path";
+import { GeminiClient } from "../types";
+import { FileHelper } from "../Utils/FileHelper";
 
 export class AutoAgent extends BaseAgent {
     private browser: Browser | any;
-    private context: Context | any;
     private page: Page | any;
+    private context: BrowserContext | any;
     public actionLogs: string[] = [];
+    public testOutputDir: string = '';
 
-    constructor(apiKey: string, model: string) {
-        super(
-            apiKey,
-            model,
-            `You are a Playwright Automation Agent.
-            INPUT: Global Notes, Accessibility Tree, Current Step.
-            OUTPUT: Valid Playwright Code ONLY. The Code must be Javascript. No explanations.
-            Assume 'page' exists.`
-        );
+    constructor(geminiClient: GeminiClient) {
+        super(geminiClient);
     }
 
-    public async startBrowser() {
+    public async startBrowser(testName?: string): Promise<void> {
         const use = config.use || {};
         const actionTimeout = use.actionTimeout || 10000;
         const navTimeout = use.navigationTimeout || 30000;
+        const timestamp = FileHelper.getTimestamp();
+        this.testOutputDir = testName ? `output/${testName}_${timestamp}/` : `output/${timestamp}/`;
 
         this.browser = await chromium.launch({
             headless: use.headless ?? false,
@@ -33,7 +29,7 @@ export class AutoAgent extends BaseAgent {
         this.context = await this.browser.newContext({
             viewport: use.viewport || { width: 1280, height: 720 },
             recordVideo: {
-                dir: 'output/videos/',
+                dir: this.testOutputDir,
                 size: use.viewport || { width: 1280, height: 720 }
             }
         });
@@ -47,12 +43,21 @@ export class AutoAgent extends BaseAgent {
         await this.browser.close();
     }
 
+    public async extractLog(testName: string, data: any): Promise<void> {
+        try {
+            FileHelper.writeFile(this.testOutputDir, `${testName}.json`, data);
+            console.log(`[🤖🤖🤖] >> ⏹️ Extract log: ${testName}.json`);
+        } catch (error) {
+            console.error(`[🤖🤖🤖] >> ☠️ Error writing log file: ${error}`);
+        }
+    }
+
     private async getElementsTree(): Promise<string> {
         try {
             const snapshot = await this.page.accessibility.snapshot();
             return JSON.stringify(snapshot, null, 2);
-        } catch (e) { 
-            return "Error getting snapshot"; 
+        } catch (e) {
+            return "Error getting snapshot";
         }
     }
 
@@ -82,7 +87,7 @@ export class AutoAgent extends BaseAgent {
         return previousSnapshot;
     }
 
-    public async executeStep(step: string, contextNotes: string): Promise<void> {
+    public async executeStep(step: string, contextNotes: string[]): Promise<void> {
         const pageElements = await this.waitForUIStability();
 
         const fullPrompt = `
@@ -93,7 +98,7 @@ export class AutoAgent extends BaseAgent {
             ${step}
 
             NOTES:
-            ${contextNotes}
+            ${contextNotes.join('\n')}
         `;
 
         const pwRawScript = await this.sendToLLM(fullPrompt);

@@ -1,15 +1,21 @@
+import { GeminiClient } from "../types";
 import { BaseAgent } from "./BaseAgent";
 
 export class EvaluatorAgent extends BaseAgent {
-    constructor(apiKey: string, model: string) {
-        super(
-            apiKey, 
-            model, 
-            `You are a QA Evaluator.
-            Compare Execution Logs vs Expected Results.
-            Output JSON: { "verdict": "PASS" | "FAIL", "reason": "string", "confidence": number }`
-        );
+
+    constructor(geminiClient: GeminiClient) {
+        super(geminiClient);
     }
+    
+    // constructor(apiKey: string, model: string) {
+    //     super(
+    //         apiKey, 
+    //         model, 
+    //         `You are a QA Evaluator.
+    //         Compare Execution Logs vs Expected Results.
+    //         Output JSON: { "verdict": "PASS" | "FAIL", "reason": "string", "confidence": number }`
+    //     );
+    // }
 
     async evaluateRun(goal: string, expected: string[], logs: string[]): Promise<any> {
         const prompt = `GOAL: ${goal}\nEXPECTED: ${JSON.stringify(expected)}\nLOGS: ${JSON.stringify(logs)}`;

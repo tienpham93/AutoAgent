@@ -1,14 +1,15 @@
 import { GenerativeModel, ChatSession, GoogleGenerativeAI } from "@google/generative-ai";
+import { GeminiClient } from "../types";
 
 export class BaseAgent {
     protected model: GenerativeModel;
     protected chat: ChatSession;
 
-    constructor(apiKey: string, model: string, systemInstruction: string) {
-        const genAI = new GoogleGenerativeAI(apiKey);
+    constructor(geminiClient: GeminiClient) {
+        const genAI = new GoogleGenerativeAI(geminiClient.apiKey);
         this.model = genAI.getGenerativeModel({
-            model: model,
-            systemInstruction: systemInstruction
+            model: geminiClient.model,
+            systemInstruction: geminiClient.persona
         });
         this.chat = this.model.startChat();
     }

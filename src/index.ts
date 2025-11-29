@@ -3,29 +3,41 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { AutoAgent } from './Agents/AutoAgent';
 import { ExtractorAgent } from './Agents/ExtractorAgent';
+import { FileHelper } from './Utils/FileHelper';
+import { TestCase } from './types';
+
 
 dotenv.config();
 
 const API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.MODEL_NAME || "gemini-2.5-flash";
 const TESTS_DIR = process.cwd() + '/src/__Tests__';
-const RESULTS_DIR = process.cwd() + '/output/';
+const PERSONA_DIR = process.cwd() + '/src/Prompts/Persona';
 
 async function main() {
+    
+    // INIT AGENTS
     if (!API_KEY) throw new Error("🚫 API Key missing 🚫");
 
-    // Initialize Agents
-    const extractor = new ExtractorAgent(API_KEY, MODEL);
-    const autoBot = new AutoAgent(API_KEY, MODEL);
+    const extractor = new ExtractorAgent({
+        apiKey: API_KEY,
+        model: MODEL,
+        persona: FileHelper.readTextFile(`${PERSONA_DIR}/extractor_persona.txt`)
+    });
 
-    const files = fs.readdirSync(TESTS_DIR).filter(f => f.endsWith('.md'));
+    const autoBot = new AutoAgent({
+        apiKey: API_KEY,
+        model: MODEL,
+        persona: FileHelper.readTextFile(`${PERSONA_DIR}/autobot_persona.txt`)
+    });
 
+    // READ & PARSE TESTCASE
+    const files = FileHelper.readDirectory(TESTS_DIR).filter(f => f.endsWith('.md'));
     for (const file of files) {
-        // 1. READ & PARSE TESTCASE
-        const rawMarkdown = fs.readFileSync(path.join(TESTS_DIR, file), 'utf-8');
+        const rawMarkdown = FileHelper.readTextFile(`${TESTS_DIR}/${file}`);
         console.log("[🚁🚁🚁] >> 🏗️ Parsing test case...");
 
-        let testCase: any;
+        let testCase: TestCase;
         try {
             testCase = await extractor.parse(rawMarkdown);
             console.log(`[🚁🚁🚁] >> ✅ Loaded successfully:\n${JSON.stringify(testCase, null, 2)}`);
@@ -33,39 +45,32 @@ async function main() {
             console.error(`[🚁🚁🚁] >> ❌ Failed to prase "${file}":`, error);
         }
 
-
-        // 2. EXECUTION TESTCASE
-        await autoBot.startBrowser();
+        const testName = file.replace('.md', '');
+        // EXECUTING TESTCASE
+        await autoBot.startBrowser(testName);
 
         autoBot.actionLogs = [];
-        for (const step of testCase.steps) {
+        for (const step of testCase!.steps) {
             try {
-                await autoBot.executeStep(step, testCase.notes || "");
+                await autoBot.executeStep(step.action, step.notes);
             } catch (error: any) {
                 console.error(`[🤖🤖🤖] >> ☠️ Error executing step "${step}":`, error);
             }
 
         }
+        
         await autoBot.stopBrowser();
 
-        // 3. POST-PROCESS PREPARATION (Save Data)
+        // POST EXECUTION
         const reportData = {
             testFile: file,
-            testTitle: testCase.title,
-            testGoal: testCase.goal,
-            expectedResults: testCase.expectedResults,
+            testTitle: testCase!.title,
+            testGoal: testCase!.goal,
+            testStep: testCase!.steps,
             executionLogs: autoBot.actionLogs, // <--- The Evaluator will need this later
             timestamp: new Date().toISOString()
         };
-
-        if (!fs.existsSync(RESULTS_DIR)) {
-            fs.mkdirSync(RESULTS_DIR, { recursive: true });
-        }
-        const reportPath = path.join(RESULTS_DIR, `${file.replace('.md', '')}.json`);
-        fs.writeFileSync(reportPath, JSON.stringify(reportData, null, 2));
-
-        console.log(`   💾 Execution data saved to: results/${path.basename(reportPath)}`);
-        console.log(`════════════════════════════════════════`);
+        await autoBot.extractLog(testName, reportData);
     }
 }
 

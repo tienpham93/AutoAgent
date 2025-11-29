@@ -3,17 +3,15 @@
 ### 🧪 TC01 - Verify users can search hotels by a location's name 🧪
 
 ### 🎯 Goal 🎯
-Verify that a registered user can successfully log in with valid credentials.
+Verify that a user can successfully search for a list of hotel when input all valid data to required fields of search console.
 
-### 👣 Steps 👣
+### 👣 Step Actions 👣
 1. Go to "https://www.agoda.com/"
 2. Enter "Hong Kong" to "Enter a destination or property" input field
 3. Select the 1st **Suggestion** from the suggestion list
 4. Select 8th Dec to 14th Dec from Calendar
-5. Select 2 Room, 4 Adults and 0 Children
+5. Select 2 Room, 4 Adults and 1 Children
 6. Click Search button
-7. There a new tab will be opened, switch to that tab
-8. Set page waits for 20s
 
 ### ✅ Expected Result ✅
 

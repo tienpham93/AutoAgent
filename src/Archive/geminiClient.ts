@@ -1,15 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as dotenv from 'dotenv';
+import { AgentOptions } from "../types";
 
 dotenv.config();
 const API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.MODEL_NAME || "gemini-2.5-flash";
-
-type AgentOptions = {
-    persona?: string;
-    workflow?: string[];
-    keynotes?: string;
-};
 
 export const GeminiClient = (agentOptions: AgentOptions) => {
     // Load options:
