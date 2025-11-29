@@ -1,9 +1,12 @@
 import { Browser, Page, chromium } from "playwright";
 import { BaseAgent } from "./BaseAgent";
 import config from '../../playwright.config';
+import { Context } from "vm";
+import path from "path";
 
 export class AutoAgent extends BaseAgent {
     private browser: Browser | any;
+    private context: Context | any;
     private page: Page | any;
     public actionLogs: string[] = [];
 
@@ -19,15 +22,24 @@ export class AutoAgent extends BaseAgent {
     }
 
     public async startBrowser() {
-        this.browser = await chromium.launch({ headless: false });
-        const context = await this.browser.newContext();
-        this.page = await context.newPage();
-    
-        // Load config 
-        const globalTimeout = config.use?.actionTimeout || 30000;
-        const navTimeout = config.use?.navigationTimeout || 30000;
-    
-        this.page.setDefaultTimeout(globalTimeout);
+        const use = config.use || {};
+        const actionTimeout = use.actionTimeout || 10000;
+        const navTimeout = use.navigationTimeout || 30000;
+
+        this.browser = await chromium.launch({
+            headless: use.headless ?? false,
+        });
+
+        this.context = await this.browser.newContext({
+            viewport: use.viewport || { width: 1280, height: 720 },
+            recordVideo: {
+                dir: 'output/videos/',
+                size: use.viewport || { width: 1280, height: 720 }
+            }
+        });
+
+        this.page = await this.context.newPage();
+        this.page.setDefaultTimeout(actionTimeout);
         this.page.setDefaultNavigationTimeout(navTimeout);
     }
 
@@ -38,16 +50,18 @@ export class AutoAgent extends BaseAgent {
     private async getElementsTree(): Promise<string> {
         try {
             const snapshot = await this.page.accessibility.snapshot();
-            return JSON.stringify(snapshot, null, 2); 
-        } catch (e) { return "Error getting snapshot"; }
+            return JSON.stringify(snapshot, null, 2);
+        } catch (e) { 
+            return "Error getting snapshot"; 
+        }
     }
 
     private async extractCode(rawText: string): Promise<string> {
         let clean = rawText.replace(/```javascript/g, "").replace(/```js/g, "").replace(/```/g, "");
         return clean.trim();
     }
-    
-    private async waitForUIStability(timeout = 10000): Promise<string> {                
+
+    private async waitForUIStability(timeout = 10000): Promise<string> {
         const startTime = Date.now();
         let previousSnapshot = await this.getElementsTree();
 
@@ -68,9 +82,9 @@ export class AutoAgent extends BaseAgent {
         return previousSnapshot;
     }
 
-    public async executeStep(step: string, contextNotes: string): Promise<void> {        
+    public async executeStep(step: string, contextNotes: string): Promise<void> {
         const pageElements = await this.waitForUIStability();
-        
+
         const fullPrompt = `
             CURRENT PAGE STATE (JSON):
             ${pageElements}

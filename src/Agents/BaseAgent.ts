@@ -22,7 +22,10 @@ export class BaseAgent {
                 return result.response.text();
             } catch (error: any) {
                 // Check if it is a Quota/Rate Limit error
-                if (error.message.includes("429") || error.message.includes("503") || error.message.includes("Too Many Requests")) {
+                if (error.message.includes("429") || 
+                    error.message.includes("503") || 
+                    error.message.includes("Too Many Requests")
+                ) {
                     console.log("[🤖🤖🤖] >> ⏳ Waiting 5s to respect quota...");
                     await new Promise(resolve => setTimeout(resolve, 5000));
                     attempt++; // Increment attempt counter

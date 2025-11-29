@@ -9,7 +9,7 @@ dotenv.config();
 const API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.MODEL_NAME || "gemini-2.5-flash";
 const TESTS_DIR = process.cwd() + '/src/__Tests__';
-const RESULTS_DIR = process.cwd() + 'output';
+const RESULTS_DIR = process.cwd() + '/output/';
 
 async function main() {
     if (!API_KEY) throw new Error("🚫 API Key missing 🚫");
