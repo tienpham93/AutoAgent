@@ -6,3 +6,5 @@ node_modules/
 /playwright/.auth/
 playwright-report/
 output/
+.vscode/
+.env
