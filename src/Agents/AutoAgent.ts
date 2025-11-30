@@ -114,9 +114,9 @@ export class AutoAgent extends BaseAgent {
                     ${pwScript} 
                 })()`
             );
-            this.actionLogs.push(`Success: ${step}`);
+            this.actionLogs.push(`Executed Success: ${step}`);
         } catch (e: any) {
-            this.actionLogs.push(`Failed: ${step} - ${e.message}`);
+            this.actionLogs.push(`Executed Failed: ${step} - ${e.message}`);
             console.error(`Step failed: ${e.message}`);
         }
     }

@@ -21,8 +21,8 @@ Verify that a user can successfully search for a list of hotel when input all va
 
 ### 📝 Notes 📝
 
- 📌 **Suggestion** can refer to locator data-element-name="search-box-sub-suggestion"
+📌 **Suggestion** can refer to locator data-element-name="search-box-sub-suggestion"
 
- 📌 **Location** can refer to locator data-selenium="area-city-text"
+📌 **Location** can refer to locator data-selenium="area-city-text"
 
 ---
