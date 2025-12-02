@@ -1,11 +1,8 @@
 import * as dotenv from 'dotenv';
-import * as fs from 'fs';
-import * as path from 'path';
 import { AutoAgent } from './Agents/AutoAgent';
 import { ExtractorAgent } from './Agents/ExtractorAgent';
 import { FileHelper } from './Utils/FileHelper';
 import { TestCase } from './types';
-
 
 dotenv.config();
 

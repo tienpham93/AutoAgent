@@ -1,8 +1,11 @@
 {
-  "name": "AutoAgent",
+  "name": "agent-driven-automation-framework",
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
+  "author": {
+    "name": "tien-pham"
+  },
   "devDependencies": {
     "@google/generative-ai": "^0.24.1",
     "@playwright/test": "^1.56.1",
@@ -12,7 +15,7 @@
     "typescript": "^5.9.3"
   },
   "scripts": {
-    "debug": "ts-node src/remotePlaywright.ts",
+    "debug": "ts-node src/Debug/Debugger.ts",
     "start:autoagent": "ts-node src/autoAgent.ts",
     "start": "ts-node src/index.ts"
   },

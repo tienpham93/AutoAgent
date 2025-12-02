@@ -6,10 +6,11 @@ import { FileHelper } from "../Utils/FileHelper";
 
 export class AutoAgent extends BaseAgent {
     private browser: Browser | any;
-    private page: Page | any;
+    public page: Page | any;
     private context: BrowserContext | any;
     public actionLogs: string[] = [];
     public testOutputDir: string = '';
+    public debugDir: string = 'src/Debug/Elements/';
 
     constructor(geminiClient: GeminiClient) {
         super(geminiClient);
@@ -52,16 +53,22 @@ export class AutoAgent extends BaseAgent {
         }
     }
 
-    private async getElementsTree(): Promise<string> {
+    public async getElementsTree(isDebug = false): Promise<string> {
         try {
             const snapshot = await this.page.accessibility.snapshot();
+            if(isDebug) {
+                const timestamp = FileHelper.getTimestamp();
+                console.log(`[🤖🤖🤖] >> 🌳 Saving elements tree snapshot: elements_tree_${timestamp}.json`);
+                FileHelper.writeFile(this.debugDir, `elements_tree_${timestamp}.json`, snapshot);
+            }
+
             return JSON.stringify(snapshot, null, 2);
         } catch (e) {
             return "Error getting snapshot";
         }
     }
 
-    private async extractCode(rawText: string): Promise<string> {
+    public async extractCode(rawText: string): Promise<string> {
         let clean = rawText.replace(/```javascript/g, "").replace(/```js/g, "").replace(/```/g, "");
         return clean.trim();
     }
@@ -87,18 +94,27 @@ export class AutoAgent extends BaseAgent {
         return previousSnapshot;
     }
 
-    public async executeStep(step: string, contextNotes: string[]): Promise<void> {
+    public async executeStep(step: string, contextNotes?: string[]): Promise<void> {
         const pageElements = await this.waitForUIStability();
 
         const fullPrompt = `
+            KNOWLEDGE BASE:
+            PAGE CONTEXT: 
+            ${contextNotes!.join('\n') || 'N/A'}
+            PAGE WORKFLOW:
+            1. ARRIVE: when url changes, wait for page load and UI stability.
+            2. ABORT: when you cannot proceed, stop and report back.
+            3. RETRY: when an action fails, try again with a different approach.
+            4. SKIP: when stuck, skip to the next step.
+            --------------------------------
             CURRENT PAGE STATE (JSON):
             ${pageElements}
-
+            --------------------------------
             TESTCASE STEP: 
             ${step}
-
-            NOTES:
-            ${contextNotes.join('\n')}
+            --------------------------------
+            TEST STEP NOTES:
+            ${contextNotes!.join('\n') || 'N/A'}
         `;
 
         const pwRawScript = await this.sendToLLM(fullPrompt);

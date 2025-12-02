@@ -14,7 +14,7 @@ export class BaseAgent {
         this.chat = this.model.startChat();
     }
 
-    protected async sendToLLM(message: string): Promise<string> {
+    public async sendToLLM(message: string): Promise<string> {
         const maxRetries = 5;
         let attempt = 0;
         while (attempt < maxRetries) {
