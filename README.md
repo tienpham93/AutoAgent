@@ -1,7 +1,7 @@
 "# AutoAgent" 
 
 
-I am writing page context documents to train my LLM to perform automation testing on a web application. Please read through everything and 
+I am writing page context documents to train my LLM to perform automation testing on a web application. Please read through and documentation everything, I will give you a template to following later
 - Keynotes of automation:
     + Automation tool: Playwright
     + Language: Typescript
