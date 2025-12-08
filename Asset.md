@@ -14,9 +14,10 @@ Warning / Alert	⚠️, 🚩, 🔔, 🚧 Something went wrong, but the process c
 Tech / Crash	💣, 💥, 🔌, 🔥 System crash, disconnection, or critical failure.
 Bugs / Glitches	🐛, 👾, 🦟	Code errors, logical loops, or software bugs.
 Notifications	🚨, 📢	Urgent error alerts.
-
+Input: 📥
+Output: 📤
 Car: 🚗, 🚘, 🚙, 🏎️, 🚕
 Truck: 🚚, 🚛, 🛻, 🚜
 Ship: 🚢, ⛴️, 🚤, 🛳️, ⚓ 
-
-Others: 🛰️, 🚁, 🏗️, 🧠, 🎨, 🛡️, 🗂️, 🔄, 👈, 🗂️, 🏢, 🔗, 🌳, 🔑
+Numbers: 0️⃣ 1️⃣2️⃣	3️⃣	4️⃣	5️⃣ 6️⃣	7️⃣	8️⃣	9️⃣	🔟
+Others: 🛰️, 🚁, 🏗️, 🧠, 🎨, 🛡️, 🗂️, 🔄, 👈, 🗂️, 🏢, 🔗, 🌳, 🔑, 🧮, 🔢, 📅, 📶, ⚔️, 🤞, 🚦, 🚀, 🔒, 🌡️
