@@ -4,6 +4,7 @@ export type GeminiClient = {
     apiKey: string;
     model: string;
     persona: string;
+    intialContexts?: string[];
 };
 
 export type TestCase = {

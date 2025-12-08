@@ -16,8 +16,7 @@
   },
   "scripts": {
     "debug": "ts-node src/Debug/Debugger.ts",
-    "start:autoagent": "ts-node src/autoAgent.ts",
-    "start": "ts-node src/index.ts"
+    "test": "ts-node src/index.ts"
   },
   "dependencies": {
     "dotenv": "^17.2.3"

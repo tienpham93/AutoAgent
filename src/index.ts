@@ -10,6 +10,8 @@ const API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.MODEL_NAME || "gemini-2.5-flash";
 const TESTS_DIR = process.cwd() + '/src/__Tests__';
 const PERSONA_DIR = process.cwd() + '/src/Prompts/Persona';
+// const CONTEXTS_DIR = process.cwd() + '/src/Prompts/Contexts';
+// const WORKFLOWS_DIR = process.cwd() + '/src/Prompts/Workflows';
 
 async function main() {
     
@@ -25,7 +27,11 @@ async function main() {
     const autoBot = new AutoAgent({
         apiKey: API_KEY,
         model: MODEL,
-        persona: FileHelper.readTextFile(`${PERSONA_DIR}/autobot_persona.txt`)
+        persona: FileHelper.readTextFile(`${PERSONA_DIR}/autobot_persona.txt`),
+        // intialContexts: [
+        //         FileHelper.readTextFile(`${CONTEXTS_DIR}/homepage-context.txt`),
+        //         FileHelper.readTextFile(`${WORKFLOWS_DIR}/homepage-workflow.txt`)
+        //     ]
     });
 
     // READ & PARSE TESTCASE

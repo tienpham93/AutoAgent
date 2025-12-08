@@ -9,7 +9,8 @@ export class BaseAgent {
         const genAI = new GoogleGenerativeAI(geminiClient.apiKey);
         this.model = genAI.getGenerativeModel({
             model: geminiClient.model,
-            systemInstruction: geminiClient.persona
+            systemInstruction: 
+                geminiClient.persona + (geminiClient.intialContexts ? "\n" + geminiClient.intialContexts.join("\n") : "")
         });
         this.chat = this.model.startChat();
     }
@@ -27,8 +28,8 @@ export class BaseAgent {
                     error.message.includes("503") || 
                     error.message.includes("Too Many Requests")
                 ) {
-                    console.log("[🤖🤖🤖] >> ⏳ Waiting 5s to respect quota...");
-                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    console.log("[🤖🤖🤖] >> ⏳ Waiting 10s to respect quota...");
+                    await new Promise(resolve => setTimeout(resolve, 10000));
                     attempt++; // Increment attempt counter
                 } else {
                     console.error(`[🤖🤖🤖] >> ☠️ Error:`, error);

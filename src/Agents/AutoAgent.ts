@@ -4,6 +4,9 @@ import config from '../../playwright.config';
 import { GeminiClient } from "../types";
 import { FileHelper } from "../Utils/FileHelper";
 
+const CONTEXTS_DIR = process.cwd() + '/src/Prompts/Contexts';
+const WORKFLOWS_DIR = process.cwd() + '/src/Prompts/Workflows';
+
 export class AutoAgent extends BaseAgent {
     private browser: Browser | any;
     public page: Page | any;
@@ -11,6 +14,8 @@ export class AutoAgent extends BaseAgent {
     public actionLogs: string[] = [];
     public testOutputDir: string = '';
     public debugDir: string = 'src/Debug/Elements/';
+    private pageTitle: string = '';
+    private currentUrl: string = '';
 
     constructor(geminiClient: GeminiClient) {
         super(geminiClient);
@@ -94,27 +99,60 @@ export class AutoAgent extends BaseAgent {
         return previousSnapshot;
     }
 
-    public async executeStep(step: string, contextNotes?: string[]): Promise<void> {
+    private detectPageContext(pageTitle: any, currentUrl?: string) {
+        const pageKnowledgeBase = [
+            {
+                pageTitle: "Agoda Official Site | Free Cancellation & Booking Deals | Over 2 Million Hotels",
+                pageUrl: "www.agoda.com",
+                contextsPath: `${CONTEXTS_DIR}/homepage-context.txt`,
+                workflowPath: `${WORKFLOWS_DIR}/homepage-workflow.txt`
+            }
+        ];
+
+        // Return page context and workflow based on title/url match
+        const title = pageTitle.toLowerCase();
+        for (const knowledge of pageKnowledgeBase) {
+            if (title.includes(knowledge.pageTitle.toLowerCase()) || 
+                currentUrl?.includes(knowledge.pageUrl.toLowerCase())) {
+                console.log(`[🤖🤖🤖] >> 💉 Inject page context: ${knowledge.contextsPath}`);
+                console.log(`[🤖🤖🤖] >> 💉 Inject page workflow: ${knowledge.workflowPath}`);
+                return {
+                    contexts: FileHelper.readTextFile(knowledge.contextsPath),
+                    workflow: FileHelper.readTextFile(knowledge.workflowPath)
+                }
+            }
+        }
+
+    }
+
+    public async executeStep(step: string, contextNotes: string[]): Promise<void> {
         const pageElements = await this.waitForUIStability();
 
+        let currentPageTitle = await JSON.parse(pageElements).name;
+        let currentUrl = await this.page.url();
+        let pageKnowledgeBase: any;
+        // Check if pageTitle or currentUrl have changed
+        if (this.pageTitle !== currentPageTitle && this.currentUrl !== currentUrl) {
+            this.pageTitle = await JSON.parse(pageElements).name;
+            this.currentUrl = await this.page.url();
+            pageKnowledgeBase = this.detectPageContext(this.pageTitle, this.currentUrl);
+        }
+
         const fullPrompt = `
-            KNOWLEDGE BASE:
-            PAGE CONTEXT: 
-            ${contextNotes!.join('\n') || 'N/A'}
-            PAGE WORKFLOW:
-            1. ARRIVE: when url changes, wait for page load and UI stability.
-            2. ABORT: when you cannot proceed, stop and report back.
-            3. RETRY: when an action fails, try again with a different approach.
-            4. SKIP: when stuck, skip to the next step.
-            --------------------------------
-            CURRENT PAGE STATE (JSON):
+            ***KNOWLEDGE BASE***
+            PAGE CONTEXTS:
+            ${pageKnowledgeBase?.contexts || 'N/A'}
+            PAGE WORKFLOWS:
+            ${pageKnowledgeBase?.workflow || 'N/A'}
+            ------------------------------
+            ***CURRENT PAGE STATE (JSON)***
             ${pageElements}
-            --------------------------------
-            TESTCASE STEP: 
+            ------------------------------
+            ***TESTCASE STEP***
             ${step}
-            --------------------------------
-            TEST STEP NOTES:
-            ${contextNotes!.join('\n') || 'N/A'}
+            ------------------------------
+            ***NOTES***
+            ${contextNotes.join('\n')}
         `;
 
         const pwRawScript = await this.sendToLLM(fullPrompt);
