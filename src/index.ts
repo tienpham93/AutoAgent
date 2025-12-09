@@ -47,21 +47,15 @@ async function main() {
         } catch (error) {
             console.error(`[🚁🚁🚁] >> ❌ Failed to prase "${file}":`, error);
         }
-
         const testName = file.replace('.md', '');
+
         // EXECUTING TESTCASE
         await autoBot.startBrowser(testName);
 
         autoBot.actionLogs = [];
         for (const step of testCase!.steps) {
-            try {
-                await autoBot.executeStep(step.action, step.notes);
-            } catch (error: any) {
-                console.error(`[🤖🤖🤖] >> ☠️ Error executing step "${step}":`, error);
-            }
-
+            await autoBot.executeStep(step.action, step.notes);
         }
-        
         await autoBot.stopBrowser();
 
         // POST EXECUTION

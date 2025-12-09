@@ -125,53 +125,87 @@ export class AutoAgent extends BaseAgent {
 
     }
 
-    public async executeStep(step: string, contextNotes: string[]): Promise<void> {
-        const pageElements = await this.waitForUIStability();
+    public async executeStep(step: string, contextNotes: string[], MAX_RETRIES = 3): Promise<void> {
+        let attempt = 0;
+        let lastError: string | null = null;
+    
+        // Retry if there's an error
+        while (attempt < MAX_RETRIES) {
+            const pageElements = await this.waitForUIStability();
 
-        let currentPageTitle = await JSON.parse(pageElements).name;
-        let currentUrl = await this.page.url();
-        let pageKnowledgeBase: any;
-        // Check if pageTitle or currentUrl have changed
-        if (this.pageTitle !== currentPageTitle && this.currentUrl !== currentUrl) {
-            this.pageTitle = await JSON.parse(pageElements).name;
-            this.currentUrl = await this.page.url();
-            pageKnowledgeBase = this.detectPageContext(this.pageTitle, this.currentUrl);
+            let currentPageTitle = await JSON.parse(pageElements).name;
+            let currentUrl = await this.page.url();
+            let pageKnowledgeBase: any;
+
+            // Check if pageTitle or currentUrl have changed
+            if (this.pageTitle !== currentPageTitle && this.currentUrl !== currentUrl) {
+                this.pageTitle = await JSON.parse(pageElements).name;
+                this.currentUrl = await this.page.url();
+                pageKnowledgeBase = this.detectPageContext(this.pageTitle, this.currentUrl);
+            }
+    
+            let fullPrompt = `
+                ***KNOWLEDGE BASE***
+                PAGE CONTEXTS:
+                ${pageKnowledgeBase?.contexts || 'N/A'}
+                PAGE WORKFLOWS:
+                ${pageKnowledgeBase?.workflow || 'N/A'}
+                ------------------------------
+                ***CURRENT PAGE STATE (JSON)***
+                ${pageElements}
+                ------------------------------
+                ***TESTCASE STEP***
+                ${step}
+                ------------------------------
+                ***NOTES***
+                ${contextNotes.join('\n')}
+            `;
+    
+            // Inject last error if exists
+            if (lastError) {
+                fullPrompt = `
+                \n------------------------------
+                *** ⚠️ PREVIOUS ATTEMPT FAILED ⚠️ ***
+                Your last generated code failed to execute.
+                ERROR MESSAGE: "${lastError}"
+                
+                INSTRUCTIONS FOR RECOVERY:
+                1. Analyze the Error Message above.
+                2. Find instructions in page contexts and workflows to better address the step.
+                3. If the errors regarding elements/locators, hence Do NOT repeat the exact same code/selector.
+                4. Use the "CURRENT PAGE STATE" to find a better selector (e.g., if ID failed, try text or aria-label).
+                5. If the error suggests a timeout, add a wait step.
+                ------------------------------
+                `;
+            }
+    
+            const pwRawScript = await this.sendToLLM(fullPrompt);
+            const pwScript = await this.extractCode(pwRawScript);
+            console.log(`[🤖🤖🤖] >> 🦾 Executing step: "${step}"`);
+            console.log(`[🤖🤖🤖] >> 📌 Step Note: "${contextNotes}"`);
+            console.log(`[🤖🤖🤖] >> 🎭 Step Script: "${pwScript}"\n`);
+
+            try {
+                const page = await this.page;
+                await eval(
+                    `(async () => {
+                        ${pwScript} 
+                    })()`
+                );
+                // ✅ SUCCESS: Log and Break Loop
+                this.actionLogs.push(`Executed Success: ${step}`);
+                return; 
+            } catch (e: any) {
+                // ❌ FAILURE: Capture error and loop again
+                lastError = e.message;
+                console.error(`[🤖🤖🤖] >> 💥 Error in Attempt ${attempt + 1} Failed: ${lastError}`);
+                this.actionLogs.push(`Attempt ${attempt + 1} Failed: ${step} - ${lastError}`);
+                attempt++;
+            }
         }
-
-        const fullPrompt = `
-            ***KNOWLEDGE BASE***
-            PAGE CONTEXTS:
-            ${pageKnowledgeBase?.contexts || 'N/A'}
-            PAGE WORKFLOWS:
-            ${pageKnowledgeBase?.workflow || 'N/A'}
-            ------------------------------
-            ***CURRENT PAGE STATE (JSON)***
-            ${pageElements}
-            ------------------------------
-            ***TESTCASE STEP***
-            ${step}
-            ------------------------------
-            ***NOTES***
-            ${contextNotes.join('\n')}
-        `;
-
-        const pwRawScript = await this.sendToLLM(fullPrompt);
-        const pwScript = await this.extractCode(pwRawScript);
-        console.log(`[🤖🤖🤖] >> 🦾 Executing step: "${step}"`);
-        console.log(`[🤖🤖🤖] >> 📌 Step Note: "${contextNotes}"`);
-        console.log(`[🤖🤖🤖] >> 🎭 Step Script: "${pwScript}"\n`);
-
-        try {
-            const page = await this.page;
-            await eval(
-                `(async () => {
-                    ${pwScript} 
-                })()`
-            );
-            this.actionLogs.push(`Executed Success: ${step}`);
-        } catch (e: any) {
-            this.actionLogs.push(`Executed Failed: ${step} - ${e.message}`);
-            console.error(`Step failed: ${e.message}`);
-        }
+    
+        const finalErrorMsg = `[🤖🤖🤖] >> ☠️ Failed self recovery with Error: ${lastError}`;
+        this.actionLogs.push(`FATAL: ${finalErrorMsg}`);
+        throw new Error(finalErrorMsg);
     }
 }
