@@ -12,13 +12,13 @@ const GEMINI_AUTO_AGENT_KEY = process.env.GEMINI_AUTO_AGENT_KEY;
 const GEMINI_AUTO_AGENT_MODEL = process.env.GEMINI_AUTO_AGENT_MODEL || "gemini-2.5-flash";
 const GEMINI_EVALUATOR_KEY = process.env.GEMINI_EVALUATOR_KEY;
 const GEMINI_EVALUATOR_MODEL = process.env.GEMINI_EVALUATOR_MODEL || "gemini-1.5-flash";
-const GEMINI_EXTRACTOR_KEY = process.env.GEMINI_EXTRACTOR_KEY;
-const GEMINI_EXTRACTOR_MODEL = process.env.GEMINI_EXTRACTOR_MODEL || "gemini-2.5-flash";
 
 // Load Claude Configuration
 dotenv.config({ path: path.resolve(process.cwd(), 'env/claude.env') });
+const CLAUDE_EXTRACTOR_KEY = process.env.CLAUDE_EXTRACTOR_KEY;
+const CLAUDE_EXTRACTOR_MODEL = process.env.CLAUDE_EXTRACTOR_MODEL || "claude-3-5-haiku-20241022";
 const CLAUDE_AUTO_AGENT_KEY = process.env.CLAUDE_AUTO_AGENT_KEY;
-const CLAUDE_AUTO_AGENT_MODEL = process.env.CLAUDE_AUTO_AGENT_MODEL || "claude-2";
+const CLAUDE_AUTO_AGENT_MODEL = process.env.CLAUDE_AUTO_AGENT_MODEL || "claude-haiku-4-5-20251001";
 
 // Declare Directories
 const TESTS_DIR = process.cwd() + '/src/__Tests__';
@@ -30,9 +30,9 @@ const PERSONA_DIR = process.cwd() + '/src/Prompts/Persona';
 async function main() {
     // INIT AGENTS
     const extractor = new ExtractorAgent({
-        vendor: LLMVendor.GEMINI,
-        apiKey: GEMINI_EXTRACTOR_KEY as any,
-        model: GEMINI_EXTRACTOR_MODEL,
+        vendor: LLMVendor.CLAUDE,
+        apiKey: CLAUDE_EXTRACTOR_KEY as any,
+        model: CLAUDE_EXTRACTOR_MODEL,
         persona: FileHelper.readTextFile(`${PERSONA_DIR}/extractor_persona.txt`)
     });
 

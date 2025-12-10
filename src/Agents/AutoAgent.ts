@@ -158,6 +158,7 @@ export class AutoAgent extends BaseAgent {
                 ${step}
                 ------------------------------
                 ***NOTES***
+                If Note is NOT empty, please Must follow strictly locator strategy/instruction in notes
                 ${contextNotes.join('\n')}
             `;
     
@@ -171,10 +172,10 @@ export class AutoAgent extends BaseAgent {
                 
                 INSTRUCTIONS FOR RECOVERY:
                 1. Analyze the Error Message above.
-                2. Find instructions in page contexts and workflows to better address the step.
-                3. If the errors regarding elements/locators, hence Do NOT repeat the exact same code/selector.
-                4. Use the "CURRENT PAGE STATE" to find a better selector (e.g., if ID failed, try text or aria-label).
-                5. If the error suggests a timeout, add a wait step.
+                2. If the error suggests a timeout, probably the elements doesn't present, so that must look for the notes in that step first.
+                3. Find instructions in page contexts and workflows to better address the step.
+                4. If the errors regarding elements/locators, hence Do NOT repeat the exact same code/selector.
+                5. Use the "CURRENT PAGE STATE" to find a better selector (e.g., if ID failed, try text or aria-label).
                 ------------------------------
                 `;
             }

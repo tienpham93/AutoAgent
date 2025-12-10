@@ -17,7 +17,7 @@ export class BaseAgent {
         this.initializeVendor();
     }
 
-    
+
     /**
      * 🚀 Public Methods to send user's request to LLMs
      */
@@ -37,11 +37,11 @@ export class BaseAgent {
 
             } catch (error: any) {
                 if (this.isQuotaError(error)) {
-                    console.log(`[🤖 ${this.config.vendor?.toUpperCase()}] >> ⏳ Waiting 10s to respect quota...`);
+                    console.log(`[🤖🤖🤖] >> ${this.config.vendor?.toUpperCase()} ⏳ Waiting 10s to respect quota...`);
                     await new Promise(resolve => setTimeout(resolve, 10000));
                     attempt++;
                 } else {
-                    console.error(`[🤖 ${this.config.vendor?.toUpperCase()}] >> ☠️ Error:`, error);
+                    console.error(`[🤖🤖🤖] >> ${this.config.vendor?.toUpperCase()} ☠️ Error:`, error);
                     break; 
                 }
             }
@@ -57,7 +57,7 @@ export class BaseAgent {
                 // Currently only Gemini supports video input
                 return await this._callGeminiWithVideo(message, fileUri, mimeType);
             } catch (error: any) {
-                console.error(`[🤖 ${this.config.vendor?.toUpperCase()}] >> ☠️ Video Error Attempt ${attempt+1}:`, error.message);
+                console.error(`[🤖🤖🤖] >> ${this.config.vendor?.toUpperCase()} ☠️ Video Error Attempt ${attempt+1}:`, error.message);
                 if (this.isQuotaError(error)) {
                     await new Promise(resolve => setTimeout(resolve, 10000));
                     attempt++;

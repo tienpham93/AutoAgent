@@ -17,9 +17,10 @@ Verify that a user can successfully search for a list of hotel when input all va
 ### 👣 Step Actions 👣
 1. Enter "Hong Kong" to "Enter a destination or property" input field
 2. Select the 1st **Suggestion** from the suggestion list
-3. Select 8th Dec to 14th Dec from Calendar
-4. Select 2 Room, 4 Adults and 1 Children
-5. Click Search button
+3. Select today is **Checkin date**
+4. Select **Checkout date** date is next 4 days from the checkin date
+5. Select 2 Room, 4 Adults and 1 Children
+6. Click Search button
 
 ### ✅ Expected Result ✅
 
@@ -29,8 +30,12 @@ Verify that a user can successfully search for a list of hotel when input all va
 
 ### 📝 Notes 📝
 
-📌 **Suggestion** can refer to locator data-element-name="search-box-sub-suggestion"
+📌 **Checkin date** can refer this xpath (//*[@class="DayPicker-Day"]//span[contains(text(), '<put_checkin_day_here>')])[1]
 
-📌 **Location** can refer to locator data-selenium="area-city-text"
+📌 **Checkout date** can refer this xpath (//*[@class="DayPicker-Day"]//span[contains(text(), '<put_checkout_day_here>')])[2]
+
+📌 **Suggestion** can refer this css[data-element-name="search-box-sub-suggestion"]
+
+📌 **Location** can refer this css [data-selenium="area-city-text"]
 
 ---
