@@ -1,17 +1,25 @@
 # ⭐ Search Feature ⭐
 
+### 🔁 Hooks 🔁
+### 🛫 Setups 🛫
+1. Go to "https://www.agoda.com/"
+
+### 🛬 Teardowns 🛬
+1. Wait for 10s before close the browser
+
+---
+
 ### 🧪 TC01 - Verify users can search hotels by a location's name 🧪
 
 ### 🎯 Goal 🎯
 Verify that a user can successfully search for a list of hotel when input all valid data to required fields of search console.
 
 ### 👣 Step Actions 👣
-1. Go to "https://www.agoda.com/"
-2. Enter "Hong Kong" to "Enter a destination or property" input field
-3. Select the 1st **Suggestion** from the suggestion list
-4. Select 8th Dec to 14th Dec from Calendar
-5. Select 2 Room, 4 Adults and 1 Children
-6. Click Search button
+1. Enter "Hong Kong" to "Enter a destination or property" input field
+2. Select the 1st **Suggestion** from the suggestion list
+3. Select 8th Dec to 14th Dec from Calendar
+4. Select 2 Room, 4 Adults and 1 Children
+5. Click Search button
 
 ### ✅ Expected Result ✅
 

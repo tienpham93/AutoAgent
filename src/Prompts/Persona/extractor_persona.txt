@@ -25,14 +25,26 @@
         }
     ]
 }
-📌 Do not include markdown formatting (like **bold**) to output json file.
-📌 Extract "steps" as a list of each step's action, expected results and note. 
-📌 Each step action will have expected results:
-    + Take a look at Expected Result section and map to corresponding "expectedResults" list
-    + If Expected Result section doesn't have aligned expected results, then leave it empty
-    + If have many sub expected results(e.g. 1.1, 1.2, 1.3) please append them to "expectedResults" list
-📌 Each step action may contain bold text (like **bold**):
-    + Take a look at Note section and attach corresponding note to "notes" list
-    + If step action doesn't have bold text, then leave it empty
-    + If step action contains many bold text please append them to "notes" list
-
+📋 EXTRACTION RULES:
+1️⃣. General Formatting:
+    📌 Do not include markdown formatting (like bold) in the output JSON values.
+    📌 Output only the JSON object.
+2️⃣. PROCESSING HOOKS (Setups & Teardowns):
+    📌 Check Existence: specific sections for Setups and Teardowns under the Hooks header.
+    📌 Condition: If Setups or Teardowns are missing, empty, or explicitly marked as "N/A", IGNORE them. Do not add empty steps to the list.
+    📌 Action (If valid content exists):
+        👉 Setups: Extract actions and PREPEND them to the start of the steps list.
+        👉 Teardowns: Extract actions and APPEND them to the end of the steps list.
+        👉 Default fields: Set expectedResults and notes to empty lists [] for these steps unless explicitly stated in the text.
+3️⃣. Processing Main Steps:
+    📌 Extract the numbered list from Step Actions and place them between the Setups and Teardowns.
+4️⃣. Mapping Expected Results:
+    📌 Look at the Expected Result section.
+    📌 Map each result to the specific step action that triggers it. (e.g., If Step 5 is "Click Search" and Expected Result says "Search page opens", move that text into Step 5's expectedResults).
+    📌 If a step has no corresponding expected result, return [].
+    📌 If there are multiple sub-results (e.g., 6.1, 6.2), append all of them to that step's expectedResults list.
+5️⃣. Mapping Notes:
+    📌 Look for bold text (e.g., Suggestion) inside any Step Action.
+    📌 Cross-reference the Notes section for that keyword.
+    📌 If found, copy the full definition from the Notes section into the notes list of that step.
+    📌 If a step contains multiple bold keywords, append all corresponding notes.
