@@ -2,36 +2,56 @@ import * as dotenv from 'dotenv';
 import { AutoAgent } from './Agents/AutoAgent';
 import { ExtractorAgent } from './Agents/ExtractorAgent';
 import { FileHelper } from './Utils/FileHelper';
-import { TestCase } from './types';
+import { LLMVendor, TestCase } from './types';
+import { EvaluatorAgent } from './Agents/EvaluatorAgent';
+import path from 'path';
 
-dotenv.config();
+// Load Gemini Configuration
+dotenv.config({ path: path.resolve(process.cwd(), 'env/gemini.env') });
+const GEMINI_AUTO_AGENT_KEY = process.env.GEMINI_AUTO_AGENT_KEY;
+const GEMINI_AUTO_AGENT_MODEL = process.env.GEMINI_AUTO_AGENT_MODEL || "gemini-2.5-flash";
+const GEMINI_EVALUATOR_KEY = process.env.GEMINI_EVALUATOR_KEY;
+const GEMINI_EVALUATOR_MODEL = process.env.GEMINI_EVALUATOR_MODEL || "gemini-1.5-flash";
+const GEMINI_EXTRACTOR_KEY = process.env.GEMINI_EXTRACTOR_KEY;
+const GEMINI_EXTRACTOR_MODEL = process.env.GEMINI_EXTRACTOR_MODEL || "gemini-2.5-flash";
 
-const API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = process.env.MODEL_NAME || "gemini-2.5-flash";
+// Load Claude Configuration
+dotenv.config({ path: path.resolve(process.cwd(), 'env/claude.env') });
+const CLAUDE_AUTO_AGENT_KEY = process.env.CLAUDE_AUTO_AGENT_KEY;
+const CLAUDE_AUTO_AGENT_MODEL = process.env.CLAUDE_AUTO_AGENT_MODEL || "claude-2";
+
+// Declare Directories
 const TESTS_DIR = process.cwd() + '/src/__Tests__';
 const PERSONA_DIR = process.cwd() + '/src/Prompts/Persona';
 // const CONTEXTS_DIR = process.cwd() + '/src/Prompts/Contexts';
 // const WORKFLOWS_DIR = process.cwd() + '/src/Prompts/Workflows';
 
-async function main() {
-    
-    // INIT AGENTS
-    if (!API_KEY) throw new Error("🚫 API Key missing 🚫");
 
+async function main() {
+    // INIT AGENTS
     const extractor = new ExtractorAgent({
-        apiKey: API_KEY,
-        model: MODEL,
+        vendor: LLMVendor.GEMINI,
+        apiKey: GEMINI_EXTRACTOR_KEY as any,
+        model: GEMINI_EXTRACTOR_MODEL,
         persona: FileHelper.readTextFile(`${PERSONA_DIR}/extractor_persona.txt`)
     });
 
     const autoBot = new AutoAgent({
-        apiKey: API_KEY,
-        model: MODEL,
+        vendor: LLMVendor.GEMINI,
+        apiKey: GEMINI_AUTO_AGENT_KEY as any,
+        model: GEMINI_AUTO_AGENT_MODEL,
         persona: FileHelper.readTextFile(`${PERSONA_DIR}/autobot_persona.txt`),
         // intialContexts: [
         //         FileHelper.readTextFile(`${CONTEXTS_DIR}/homepage-context.txt`),
         //         FileHelper.readTextFile(`${WORKFLOWS_DIR}/homepage-workflow.txt`)
         //     ]
+    });
+
+    const evaluator = new EvaluatorAgent({
+        vendor: LLMVendor.GEMINI,
+        apiKey: GEMINI_EVALUATOR_KEY as any,
+        model: GEMINI_EVALUATOR_MODEL, 
+        persona: FileHelper.readTextFile(`${PERSONA_DIR}/evaluator_persona.txt`),
     });
 
     // READ & PARSE TESTCASE

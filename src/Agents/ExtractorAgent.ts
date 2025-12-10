@@ -1,9 +1,9 @@
-import { GeminiClient } from "../types";
+import { AgentConfig } from "../types";
 import { BaseAgent } from "./BaseAgent";
 
 export class ExtractorAgent extends BaseAgent {
-    constructor(geminiClient: GeminiClient) {
-        super(geminiClient);
+    constructor(config: AgentConfig) {
+        super(config);
     }
 
     async parse(rawMarkdown: string): Promise<any> {

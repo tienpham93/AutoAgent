@@ -19,6 +19,19 @@ type Steps = {
     notes: string[]
 }
 
+export interface AgentConfig {
+    vendor?: LLMVendor;
+    apiKey: string;
+    model: string;
+    persona: string;
+    initialContexts?: string[];
+}
+
+export enum LLMVendor {
+    GEMINI = 'gemini',
+    CLAUDE = 'claude',
+    OPENAI = 'openai'
+}
 
 export type AgentOptions = {
     persona?: string;

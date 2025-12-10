@@ -1,7 +1,7 @@
 import { Browser, Page, chromium, BrowserContext } from "playwright";
 import { BaseAgent } from "./BaseAgent";
 import config from '../../playwright.config';
-import { GeminiClient } from "../types";
+import { AgentConfig } from "../types";
 import { FileHelper } from "../Utils/FileHelper";
 
 const CONTEXTS_DIR = process.cwd() + '/src/Prompts/Contexts';
@@ -17,8 +17,8 @@ export class AutoAgent extends BaseAgent {
     private pageTitle: string = '';
     private currentUrl: string = '';
 
-    constructor(geminiClient: GeminiClient) {
-        super(geminiClient);
+    constructor(config: AgentConfig) {
+        super(config);
     }
 
     public async startBrowser(testName?: string): Promise<void> {
