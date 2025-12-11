@@ -17,7 +17,8 @@
   },
   "scripts": {
     "debug": "ts-node src/Debug/Debugger.ts",
-    "test": "ts-node src/index.ts"
+    "test:execution": "ts-node src/execution.ts",
+    "test:evaluation": "ts-node src/evaluation.ts"
   },
   "dependencies": {
     "dotenv": "^17.2.3"

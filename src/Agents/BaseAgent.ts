@@ -1,10 +1,13 @@
 import { GenerativeModel, ChatSession, GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
 import { AgentConfig, LLMVendor } from "../types";
+import { GoogleAIFileManager } from "@google/generative-ai/server";
 
 export class BaseAgent {
     // Configuration
     protected config: AgentConfig;
+    protected fileManager: GoogleAIFileManager | any;
+    protected localGenAI: GoogleGenerativeAI | any; 
 
     // Vendor Specific State
     private geminiModel?: GenerativeModel;
@@ -49,26 +52,6 @@ export class BaseAgent {
         return "{}"; // Fail safe
     }
 
-    public async sendWithVideoToLLM(message: string, fileUri: string, mimeType: string, maxRetries = 5): Promise<string> {
-        let attempt = 0;
-
-        while (attempt < maxRetries) {
-            try {
-                // Currently only Gemini supports video input
-                return await this._callGeminiWithVideo(message, fileUri, mimeType);
-            } catch (error: any) {
-                console.error(`[🤖🤖🤖] >> ${this.config.vendor?.toUpperCase()} ☠️ Video Error Attempt ${attempt+1}:`, error.message);
-                if (this.isQuotaError(error)) {
-                    await new Promise(resolve => setTimeout(resolve, 10000));
-                    attempt++;
-                } else {
-                    break;
-                }
-            }
-        }
-        return "{}"; // Fail safe
-    }
-
 
     /**
      * 🏭 Vendor Factory: Switch case to handle initialization
@@ -76,16 +59,16 @@ export class BaseAgent {
     private initializeVendor(): void {
         switch (this.config.vendor) {
             case LLMVendor.CLAUDE:
-                this.initClaude();
+                this._initClaude();
                 break;
             case LLMVendor.GEMINI:
             default:
-                this.initGemini();
+                this._initGemini();
                 break;
         }
     }
 
-    private initGemini() {
+    private _initGemini() {
         const genAI = new GoogleGenerativeAI(this.config.apiKey);
         this.geminiModel = genAI.getGenerativeModel({
             model: this.config.model,
@@ -94,7 +77,7 @@ export class BaseAgent {
         this.geminiChat = this.geminiModel.startChat();
     }
 
-    private initClaude() {
+    private _initClaude() {
         this.claudeClient = new Anthropic({
             apiKey: this.config.apiKey,
         });
@@ -113,22 +96,41 @@ export class BaseAgent {
         return result.response.text();
     }
 
-    private async _callGeminiWithVideo(message: string, fileUri: string, mimeType: string): Promise<string> {
-        if (!this.geminiModel) throw new Error("Gemini Model not initialized");
+    protected async callGeminiWithMultiVideo(message: string, files: any[], maxRetries = 5): Promise<string> {
+        let attempt = 0;
+        
+        const model = this.localGenAI.getGenerativeModel({ 
+            model: this.config.model,
+            systemInstruction: this.config.persona 
+        });
 
-        // Use generateContent (stateless) instead of chat for video analysis
-        // This allows passing the fileData object directly
-        const result = await this.geminiModel.generateContent([
-            { 
-                fileData: { 
-                    mimeType: mimeType, 
-                    fileUri: fileUri 
-                } 
-            },
-            { text: message }
-        ]);
+        while (attempt < maxRetries) {
+            try {
+                // Construct the Multi-modal Payload
+                // We map the array of files into the format Gemini expects
+                const contentParts: any[] = [{ text: message }];
+                
+                files.forEach(file => {
+                    contentParts.push({
+                        fileData: { mimeType: file.mimeType, fileUri: file.uri }
+                    });
+                });
 
-        return result.response.text();
+                const result = await model.generateContent(contentParts);
+                return result.response.text();
+
+            } catch (error: any) {
+                if (this.isQuotaError(error)) {
+                    console.log(`[🤖🤖🤖] >> ${this.config.vendor?.toUpperCase()} ⏳ Waiting 10s to respect quota...`);
+                    await new Promise(resolve => setTimeout(resolve, 10000));
+                    attempt++;
+                } else {
+                    console.error(`[🤖🤖🤖] >> ${this.config.vendor?.toUpperCase()} ☠️ Error:`, error);
+                    break; 
+                }
+            }
+        }
+        throw new Error(`Failed to generate evaluation after ${maxRetries} attempts.`);
     }
 
     private async _callClaude(message: string): Promise<string> {

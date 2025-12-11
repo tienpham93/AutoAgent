@@ -9,3 +9,4 @@ output/
 src/Debug/Elements/
 .vscode/
 .env
+evaluations.json

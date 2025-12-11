@@ -3,9 +3,7 @@ import { BaseAgent } from "./BaseAgent";
 import config from '../../playwright.config';
 import { AgentConfig } from "../types";
 import { FileHelper } from "../Utils/FileHelper";
-
-const CONTEXTS_DIR = process.cwd() + '/src/Prompts/Contexts';
-const WORKFLOWS_DIR = process.cwd() + '/src/Prompts/Workflows';
+import { CONTEXTS_DIR, WORKFLOWS_DIR } from "../settings";
 
 export class AutoAgent extends BaseAgent {
     private browser: Browser | any;
@@ -103,16 +101,22 @@ export class AutoAgent extends BaseAgent {
         const pageKnowledgeBase = [
             {
                 pageTitle: "Agoda Official Site | Free Cancellation & Booking Deals | Over 2 Million Hotels",
-                pageUrl: "www.agoda.com",
+                pageUrl: "https://www.agoda.com/",
                 contextsPath: `${CONTEXTS_DIR}/homepage-context.txt`,
                 workflowPath: `${WORKFLOWS_DIR}/homepage-workflow.txt`
-            }
+            },
+            {
+                pageTitle: "Agoda | Hotels in Hong Kong | Best Price Guarantee!",
+                pageUrl: "https://www.agoda.com/search",
+                contextsPath: `${CONTEXTS_DIR}/homepage-context.txt`,
+                workflowPath: `${WORKFLOWS_DIR}/homepage-workflow.txt`
+            },
         ];
 
         // Return page context and workflow based on title/url match
         const title = pageTitle.toLowerCase();
         for (const knowledge of pageKnowledgeBase) {
-            if (title.includes(knowledge.pageTitle.toLowerCase()) || 
+            if (title.includes(knowledge.pageTitle.toLowerCase()) && 
                 currentUrl?.includes(knowledge.pageUrl.toLowerCase())) {
                 console.log(`[🤖🤖🤖] >> 💉 Inject page context: ${knowledge.contextsPath}`);
                 console.log(`[🤖🤖🤖] >> 💉 Inject page workflow: ${knowledge.workflowPath}`);
@@ -161,6 +165,8 @@ export class AutoAgent extends BaseAgent {
                 If Note is NOT empty, please Must follow strictly locator strategy/instruction in notes
                 ${contextNotes.join('\n')}
             `;
+
+            // console.log(`[🤖🤖🤖] >> 🧠 Sending to LLM with Prompt:\n${fullPrompt}\n`);
     
             // Inject last error if exists
             if (lastError) {

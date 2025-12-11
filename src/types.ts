@@ -38,3 +38,26 @@ export type AgentOptions = {
     workflow?: string[];
     keynotes?: string;
 };
+
+export interface TestRunData {
+    folderName: string;
+    jsonPath: string;
+    videoPaths: string[]; 
+}
+
+export interface EvaluationResult {
+    test_details: {
+        test_name: string;
+        test_goal: string;
+        steps: Array<{
+            step_number: number;
+            action: string;
+            expectedResults: string[];
+            notes: string[];
+            visual_observation: string;
+            step_result: "PASSED" | "FAILED";
+        }>;
+    };
+    final_judgement: string;
+    final_result: "pass" | "fail";
+}

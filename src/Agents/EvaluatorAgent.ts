@@ -1,74 +1,144 @@
 import { GoogleAIFileManager, FileState } from "@google/generative-ai/server";
-import { AgentConfig, LLMVendor } from "../types";
+import { GoogleGenerativeAI } from "@google/generative-ai"; 
+import { AgentConfig, EvaluationResult, LLMVendor, TestRunData } from "../types";
 import { BaseAgent } from "./BaseAgent";
+import * as fs from 'fs';
+import * as path from 'path';
 
 export class EvaluatorAgent extends BaseAgent {
-    private fileManager: GoogleAIFileManager;
-
     constructor(config: AgentConfig) {
         super({ 
             ...config, 
-            vendor: LLMVendor.GEMINI // Force Gemini Vendor
-
+            vendor: LLMVendor.GEMINI 
         });
         this.fileManager = new GoogleAIFileManager(config.apiKey);
+        this.localGenAI = new GoogleGenerativeAI(config.apiKey);
+    }
+
+    /**
+     * 🔍 Scans directory for JSON logs and ALL .webm videos (sorted by creation time)
+     */
+    public getTestRuns(directory: string): TestRunData[] {
+        const runs: TestRunData[] = [];
+        if (!fs.existsSync(directory)) return [];
+
+        const folders = fs.readdirSync(directory).filter(file => {
+            return fs.statSync(path.join(directory, file)).isDirectory();
+        });
+
+        folders.forEach(folder => {
+            const folderPath = path.join(directory, folder);
+            const files = fs.readdirSync(folderPath);
+
+            const jsonFile = files.find(f => f.endsWith('.json') && !f.includes('evaluations'));
+            const videoFiles = files.filter(f => f.endsWith('.webm'));
+            
+            if (jsonFile && videoFiles.length > 0) {
+                // Sort: Oldest first (Main Window), Newest last (Popups)
+                videoFiles.sort((a, b) => {
+                    const timeA = fs.statSync(path.join(folderPath, a)).birthtimeMs;
+                    const timeB = fs.statSync(path.join(folderPath, b)).birthtimeMs;
+                    return timeA - timeB;
+                });
+
+                runs.push({
+                    folderName: folder,
+                    jsonPath: path.join(folderPath, jsonFile),
+                    videoPaths: videoFiles.map(v => path.join(folderPath, v))
+                });
+            }
+        });
+
+        return runs;
+    }
+
+    /**
+     * 💾 Saves results to JSON, handling file creation and array appending.
+     */
+    public appendEvaluationResult(result: any, targetFilePath: string): void {
+        let evaluations: any[] = [];
+        
+        const directory = path.dirname(targetFilePath);
+        if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true });
+
+        if (fs.existsSync(targetFilePath)) {
+            try {
+                const raw = fs.readFileSync(targetFilePath, 'utf-8');
+                evaluations = JSON.parse(raw);
+            } catch (e) {
+                console.warn("[⚠️ Evaluator] >> Existing file corrupted. Starting fresh.");
+            }
+        }
+        
+        evaluations.push(result);
+
+        try {
+            fs.writeFileSync(targetFilePath, JSON.stringify(evaluations, null, 2));
+            console.log(`[💾 Evaluator] >> Result saved to ${path.basename(targetFilePath)}`);
+        } catch (e) {
+            console.error(`[❌ Evaluator] >> Save failed: ${e}`);
+        }
     }
 
     /**
      * 👉 You can view uploaded videos through https://aistudio.google.com/app/library
      * Note: Files uploaded via the File API generally expire after 48 hours
      */
-    public async evaluateRun(videoPath: string, testContext: string): Promise<any> {
-        console.log(`[🕵️🕵️🕵️] >> 📤 Uploading video: ${videoPath}`);
-        let uploadResult;
+    public async evaluateRun(videoPaths: string[], jsonPath: string): Promise<EvaluationResult> {
+        console.log(`[🕵️ Evaluator] >> 🎬 Analyzing ${videoPaths.length} video(s)...`);
         
+        if (!fs.existsSync(jsonPath)) throw new Error(`JSON Log not found: ${jsonPath}`);
+        const testLogContext = fs.readFileSync(jsonPath, 'utf-8');
+
+        const uploadedFiles: any[] = [];
+
         try {
-            // Upload File
-            uploadResult = await this.fileManager.uploadFile(videoPath, {
-                mimeType: "video/webm",
-                displayName: "Test Execution Record",
-            });
+            // Upload All Videos
+            for (const vPath of videoPaths) {
+                console.log(`[🕵️ Evaluator] >> 📤 Uploading: ${path.basename(vPath)}`);
+                const upload = await this.fileManager.uploadFile(vPath, {
+                    mimeType: "video/webm",
+                    displayName: "Test Video Segment",
+                });
+                uploadedFiles.push(upload.file);
+            }
 
             // Wait for Processing
-            let file = await this.fileManager.getFile(uploadResult.file.name);
-            while (file.state === FileState.PROCESSING) {
-                console.log("[🕵️🕵️🕵️] >> ⏳ Google is processing the video...");
-                await new Promise((resolve) => setTimeout(resolve, 2000));
-                file = await this.fileManager.getFile(uploadResult.file.name);
+            console.log("[🕵️ Evaluator] >> ⏳ Waiting for Google to process videos...");
+            for (const file of uploadedFiles) {
+                let current = await this.fileManager.getFile(file.name);
+                while (current.state === FileState.PROCESSING) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    current = await this.fileManager.getFile(file.name);
+                }
+                if (current.state === FileState.FAILED) throw new Error(`Video processing failed for ${file.name}`);
             }
-
-            if (file.state === FileState.FAILED) 
-                throw new Error("[🕵️🕵️🕵️] >> 🚫 Video processing failed.");
 
             const prompt = `
-                Analyze this video recording of an automation test.
-                ***TEST SCENARIO***
-                ${testContext}
-                ***YOUR TASK***
-                1. Did the test pass? (Did it reach the expected end state?)
-                2. If it failed, what exactly happened on screen?
-                Return JSON: { "result": "pass" | "fail", "reason": "..." }
+                Analyze these video recordings of an automation test.
+                ***CONTEXT***
+                There are ${uploadedFiles.length} videos provided. Treat them as a continuous sequence (Main browser tab -> next browser tab).
+                ***TEST LOG DATA***
+                ${testLogContext}
+                ***TASK***
+                Follow the PERSONA rules. Return JSON.
             `;
 
-            const responseText = await this.sendWithVideoToLLM(prompt, file.uri, file.mimeType);
+            const responseText = await this.callGeminiWithMultiVideo(prompt, uploadedFiles);
 
-            // Cleanup File
-            await this.fileManager.deleteFile(uploadResult.file.name);
+            // Cleanup
+            for (const file of uploadedFiles) await this.fileManager.deleteFile(file.name);
 
             const cleanJson = responseText.replace(/```json|```/g, '').trim();
-            return JSON.parse(cleanJson);
+            return JSON.parse(cleanJson) as EvaluationResult;
 
         } catch (error) {
-            console.error("[🕵️🕵️🕵️] >> ❌ Error:", error);
-            // Cleanup on error if upload happened
-            if (uploadResult) {
-                try { 
-                    await this.fileManager.deleteFile(uploadResult.file.name); 
-                } catch(e) {
-
-                }
+            console.error("[🕵️ Evaluator] >> ❌ Error:", error);
+            // Cleanup on error
+            for (const file of uploadedFiles) {
+                try { await this.fileManager.deleteFile(file.name); } catch(e) {}
             }
-            return { result: "error", reason: error };
+            throw error;
         }
     }
 }
