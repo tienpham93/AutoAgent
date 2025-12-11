@@ -42,7 +42,7 @@ export type AgentOptions = {
 export interface TestRunData {
     folderName: string;
     jsonPath: string;
-    videoPaths: string[]; 
+    videoPaths: string[];
 }
 
 export interface EvaluationResult {
@@ -57,6 +57,27 @@ export interface EvaluationResult {
             visual_observation: string;
             step_result: "PASSED" | "FAILED";
         }>;
+    };
+    final_judgement: string;
+    final_result: "pass" | "fail";
+}
+
+export interface Step {
+    step_number: number;
+    action: string;
+    expectedResults: string[];
+    notes: string[];
+    visual_observation: string;
+    step_result: "PASSED" | "FAILED";
+}
+
+export interface EvaluationRecord {
+    timestamp: string;
+    test_run_id: string;
+    test_details: { 
+        test_name: string; 
+        test_goal: string; 
+        steps: Step[] 
     };
     final_judgement: string;
     final_result: "pass" | "fail";

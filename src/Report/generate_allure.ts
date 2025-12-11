@@ -1,0 +1,130 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
+import { EvaluationRecord } from '../types';
+import { OUTPUT_DIR } from '../settings';
+
+
+const PROJECT_ROOT = process.cwd();
+const INPUT_FILE = path.join(PROJECT_ROOT, 'evaluations.json');
+const ALLURE_RESULTS_DIR = path.join(PROJECT_ROOT, 'allure-results');
+const TEST_OUTPUT_DIR = OUTPUT_DIR;
+
+function findAllVideos(folderPath: string): string[] {
+    if (!fs.existsSync(folderPath)) return [];
+
+    const files = fs.readdirSync(folderPath);
+    const videos = files.filter(f => f.endsWith('.webm'));
+
+    if (videos.length === 0) return [];
+
+    // Sort by Creation Time (Oldest first = Logical sequence)
+    videos.sort((a, b) => {
+        const timeA = fs.statSync(path.join(folderPath, a)).birthtimeMs;
+        const timeB = fs.statSync(path.join(folderPath, b)).birthtimeMs;
+        return timeA - timeB;
+    });
+
+    return videos;
+}
+
+function generateAllureReport() {
+    console.log("🚀 Converting Evaluations to Allure (with Multi-Video)...");
+    console.log(`📂 Input: ${INPUT_FILE}`);
+    console.log(`📂 Output: ${ALLURE_RESULTS_DIR}`);
+
+    // Setup Directory
+    if (fs.existsSync(ALLURE_RESULTS_DIR)) {
+        fs.rmSync(ALLURE_RESULTS_DIR, { recursive: true, force: true });
+    }
+    fs.mkdirSync(ALLURE_RESULTS_DIR, { recursive: true });
+
+    // Read Data
+    if (!fs.existsSync(INPUT_FILE)) {
+        console.error(`❌ evaluations.json not found at: ${INPUT_FILE}`);
+        return;
+    }
+    const data: EvaluationRecord[] = JSON.parse(fs.readFileSync(INPUT_FILE, 'utf-8'));
+
+    // Generate JSON for each test
+    data.forEach((record) => {
+        const testUuid = crypto.randomUUID();
+        const start = Date.now();
+        
+        const attachments: any[] = [];
+        const sourceFolder = path.join(TEST_OUTPUT_DIR, record.test_run_id);
+        
+        // Get ALL videos
+        const videoFiles = findAllVideos(sourceFolder);
+
+        videoFiles.forEach((videoFileName, index) => {
+            const sourceVideoPath = path.join(sourceFolder, videoFileName);
+            const attachmentUuid = crypto.randomUUID();
+            const newVideoName = `${attachmentUuid}-attachment.webm`;
+            const destVideoPath = path.join(ALLURE_RESULTS_DIR, newVideoName);
+
+            try {
+                fs.copyFileSync(sourceVideoPath, destVideoPath);
+                
+                // Add attachment with index (e.g., "Recording Part 1", "Recording Part 2")
+                attachments.push({
+                    name: `Recording Part ${index + 1}`,
+                    source: newVideoName,
+                    type: "video/webm"
+                });
+            } catch (e) {
+                console.warn(`Could not copy video ${videoFileName} for ${record.test_run_id}`, e);
+            }
+        });
+
+        const allureResult = {
+            uuid: testUuid,
+            historyId: record.test_run_id,
+            fullName: record.test_details.test_name || record.test_run_id,
+            name: record.test_details.test_name || record.test_run_id,
+            status: record.final_result.toLowerCase() === 'pass' ? 'passed' : 'failed',
+            statusDetails: {
+                message: record.final_judgement
+            },
+            start: start,
+            stop: start + 1000,
+            description: `**Goal:** ${record.test_details.test_goal}\n\n**AI Verdict:** ${record.final_judgement}`,
+            labels: [
+                { name: "feature", value: "AI Visual Audit" },
+                { name: "story", value: record.test_run_id }
+            ],
+            attachments: attachments, 
+            steps: record.test_details.steps.map(step => {
+                const isPass = step.step_result.toUpperCase() === 'PASSED';
+                
+                const textUuid = crypto.randomUUID();
+                const textFileName = `${textUuid}-attachment.txt`;
+                const textContent = `EXPECTED: ${step.expectedResults.join(', ')}\n\nVISUAL OBSERVATION: ${step.visual_observation}`;
+                
+                fs.writeFileSync(path.join(ALLURE_RESULTS_DIR, textFileName), textContent);
+
+                return {
+                    name: `Step ${step.step_number}: ${step.action}`,
+                    status: isPass ? 'passed' : 'failed',
+                    start: start,
+                    stop: start,
+                    attachments: [
+                        {
+                            name: "AI Analysis",
+                            source: textFileName,
+                            type: "text/plain"
+                        }
+                    ]
+                };
+            })
+        };
+
+        const fileName = `${testUuid}-result.json`;
+        fs.writeFileSync(path.join(ALLURE_RESULTS_DIR, fileName), JSON.stringify(allureResult, null, 2));
+    });
+
+    console.log(`✅ Converted ${data.length} records.`);
+    console.log(`👉 Run command: allure serve allure-results`);
+}
+
+generateAllureReport();

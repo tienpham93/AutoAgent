@@ -10,3 +10,4 @@ src/Debug/Elements/
 .vscode/
 .env
 evaluations.json
+allure-results/

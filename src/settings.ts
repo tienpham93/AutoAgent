@@ -22,6 +22,7 @@ export const CLAUDE_AUTO_AGENT_MODEL = process.env.CLAUDE_AUTO_AGENT_MODEL || "c
 // Declare Directories
 export const TESTS_DIR = rootDir + '/src/__Tests__';
 export const OUTPUT_DIR = rootDir + '/output';
+export const REPORTS_DIR = rootDir + 'src/Report';
 export const PERSONA_DIR = rootDir + '/src/Prompts/Persona';
 export const CONTEXTS_DIR = rootDir + '/src/Prompts/Contexts';
 export const WORKFLOWS_DIR = rootDir + '/src/Prompts/Workflows';
