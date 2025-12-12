@@ -1,23 +1,14 @@
-import * as dotenv from 'dotenv';
 import * as readline from 'readline';
 import { AutoAgent } from '../Agents/AutoAgent';
 import { FileHelper } from '../Utils/FileHelper';
-
-
-dotenv.config();
-
-const API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = process.env.MODEL_NAME || "gemini-2.5-flash";
-const PERSONA_DIR = process.cwd() + '/src/Prompts/Persona';
+import { GEMINI_AUTO_AGENT_KEY, GEMINI_AUTO_AGENT_MODEL, PERSONA_DIR } from '../settings';
+import { LLMVendor } from '../types';
 
 async function main() {
-    
-    // INIT AGENTS
-    if (!API_KEY) throw new Error("🚫 API Key missing 🚫");
-
     const autoBot = new AutoAgent({
-        apiKey: API_KEY,
-        model: MODEL,
+        vendor: LLMVendor.GEMINI,
+        apiKey: GEMINI_AUTO_AGENT_KEY as any,
+        model: GEMINI_AUTO_AGENT_MODEL || "gemini-2.5-flash",
         persona: FileHelper.readTextFile(`${PERSONA_DIR}/autobot_persona.txt`)
     });
 

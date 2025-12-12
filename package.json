@@ -18,9 +18,10 @@
   },
   "scripts": {
     "debug": "ts-node src/Debug/Debugger.ts",
-    "test:execution": "ts-node src/execution.ts",
-    "test:evaluation": "ts-node src/evaluation.ts",
-    "test:allure": "npx ts-node src/Report/generate_allure.ts && allure serve allure-results"
+    "test:exec": "ts-node src/execution.ts",
+    "test:eval": "ts-node src/evaluation.ts",
+    "test:allure": "npx ts-node src/Report/generate_allure.ts && allure serve allure-results",
+    "test:cleanup": "echo 'Cleanup output folder' && rm -rf output"
   },
   "dependencies": {
     "allure-commandline": "^2.36.0",

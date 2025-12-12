@@ -9,7 +9,7 @@ export class EvaluatorAgent extends BaseAgent {
     constructor(config: AgentConfig) {
         super({ 
             ...config, 
-            vendor: LLMVendor.GEMINI 
+            vendor: LLMVendor.GEMINI // Force Gemini for evaluation
         });
         this.fileManager = new GoogleAIFileManager(config.apiKey);
         this.localGenAI = new GoogleGenerativeAI(config.apiKey);
@@ -66,7 +66,7 @@ export class EvaluatorAgent extends BaseAgent {
                 const raw = fs.readFileSync(targetFilePath, 'utf-8');
                 evaluations = JSON.parse(raw);
             } catch (e) {
-                console.warn("[⚠️ Evaluator] >> Existing file corrupted. Starting fresh.");
+                console.warn("[🕵️🕵️🕵️] >> ⚠️ Existing file corrupted. Starting fresh.");
             }
         }
         
@@ -74,9 +74,9 @@ export class EvaluatorAgent extends BaseAgent {
 
         try {
             fs.writeFileSync(targetFilePath, JSON.stringify(evaluations, null, 2));
-            console.log(`[💾 Evaluator] >> Result saved to ${path.basename(targetFilePath)}`);
+            console.log(`[🕵️🕵️🕵️] >> 💾 Result saved to ${path.basename(targetFilePath)}`);
         } catch (e) {
-            console.error(`[❌ Evaluator] >> Save failed: ${e}`);
+            console.error(`[🕵️🕵️🕵️] >> ❌ Save failed: ${e}`);
         }
     }
 
@@ -85,7 +85,7 @@ export class EvaluatorAgent extends BaseAgent {
      * Note: Files uploaded via the File API generally expire after 48 hours
      */
     public async evaluateRun(videoPaths: string[], jsonPath: string): Promise<EvaluationResult> {
-        console.log(`[🕵️ Evaluator] >> 🎬 Analyzing ${videoPaths.length} video(s)...`);
+        console.log(`[🕵️🕵️🕵️] >> 🎬 Analyzing ${videoPaths.length} video(s)...`);
         
         if (!fs.existsSync(jsonPath)) throw new Error(`JSON Log not found: ${jsonPath}`);
         const testLogContext = fs.readFileSync(jsonPath, 'utf-8');
@@ -95,7 +95,7 @@ export class EvaluatorAgent extends BaseAgent {
         try {
             // Upload All Videos
             for (const vPath of videoPaths) {
-                console.log(`[🕵️ Evaluator] >> 📤 Uploading: ${path.basename(vPath)}`);
+                console.log(`[🕵️🕵️🕵️] >> 📤 Uploading: ${path.basename(vPath)}`);
                 const upload = await this.fileManager.uploadFile(vPath, {
                     mimeType: "video/webm",
                     displayName: "Test Video Segment",
@@ -104,7 +104,7 @@ export class EvaluatorAgent extends BaseAgent {
             }
 
             // Wait for Processing
-            console.log("[🕵️ Evaluator] >> ⏳ Waiting for Google to process videos...");
+            console.log("[🕵️🕵️🕵️] >> ⏳ Waiting for Google to process videos...");
             for (const file of uploadedFiles) {
                 let current = await this.fileManager.getFile(file.name);
                 while (current.state === FileState.PROCESSING) {
@@ -117,7 +117,8 @@ export class EvaluatorAgent extends BaseAgent {
             const prompt = `
                 Analyze these video recordings of an automation test.
                 ***CONTEXT***
-                There are ${uploadedFiles.length} videos provided. Treat them as a continuous sequence (Main browser tab -> next browser tab).
+                There are ${uploadedFiles.length} videos provided. 
+                If there are more than one video, treat them as a continuous sequence (Main browser tab -> next browser tab).
                 ***TEST LOG DATA***
                 ${testLogContext}
                 ***TASK***
@@ -133,7 +134,7 @@ export class EvaluatorAgent extends BaseAgent {
             return JSON.parse(cleanJson) as EvaluationResult;
 
         } catch (error) {
-            console.error("[🕵️ Evaluator] >> ❌ Error:", error);
+            console.error("[🕵️🕵️🕵️] >> ❌ Error:", error);
             // Cleanup on error
             for (const file of uploadedFiles) {
                 try { await this.fileManager.deleteFile(file.name); } catch(e) {}

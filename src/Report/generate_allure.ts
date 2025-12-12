@@ -29,9 +29,7 @@ function findAllVideos(folderPath: string): string[] {
 }
 
 function generateAllureReport() {
-    console.log("🚀 Converting Evaluations to Allure (with Multi-Video)...");
-    console.log(`📂 Input: ${INPUT_FILE}`);
-    console.log(`📂 Output: ${ALLURE_RESULTS_DIR}`);
+    console.log("[📉📉📉] >> ⏭️ Converting Evaluations to Allure (with Multi-Video)...");
 
     // Setup Directory
     if (fs.existsSync(ALLURE_RESULTS_DIR)) {
@@ -41,7 +39,7 @@ function generateAllureReport() {
 
     // Read Data
     if (!fs.existsSync(INPUT_FILE)) {
-        console.error(`❌ evaluations.json not found at: ${INPUT_FILE}`);
+        console.error(`[📉📉📉] >> ❌ evaluations.json not found at: ${INPUT_FILE}`);
         return;
     }
     const data: EvaluationRecord[] = JSON.parse(fs.readFileSync(INPUT_FILE, 'utf-8'));
@@ -73,7 +71,7 @@ function generateAllureReport() {
                     type: "video/webm"
                 });
             } catch (e) {
-                console.warn(`Could not copy video ${videoFileName} for ${record.test_run_id}`, e);
+                console.warn(`[📉📉📉] >> ❌ Could not copy video ${videoFileName} for ${record.test_run_id}`, e);
             }
         });
 
@@ -123,8 +121,7 @@ function generateAllureReport() {
         fs.writeFileSync(path.join(ALLURE_RESULTS_DIR, fileName), JSON.stringify(allureResult, null, 2));
     });
 
-    console.log(`✅ Converted ${data.length} records.`);
-    console.log(`👉 Run command: allure serve allure-results`);
+    console.log(`[📉📉📉] >> ✅ Converted ${data.length} records.`);
 }
 
 generateAllureReport();
