@@ -1,37 +1,65 @@
-🏠 HOMEPAGE WORKFLOW
+🏠 HOMEPAGE & SEARCH WORKFLOW
 ===============
 🚦 DECISION LOGIC:
 🟢 Status: CONTINUE
     🕹️ Trigger: Standard sequential execution of the Search Form or Carousel interaction.
-    🎬 Homepage Specific Conditions:
+    🎬 Homepage Hotels search Specific Conditions:
         📌 Search Input: The Auto-complete panel ([data-selenium="autocompletePanel"]) is visible after typing destination.
         📌 Date Picker: The Calendar container ([data-selenium="rangePickerCheckIn"]) is visible after clicking the Check-in box.
-        📌 Occupancy: The Popover is visible after clicking the Occupancy box.
-        📌 Carousels: The "Next" arrow is enabled, or the "Previous" arrow becomes visible after the first slide interaction.
+    
+    🎬 Homepage Flights search Specific Conditions:
+        📌 Service Tabs: The "Flights" panel is visible after clicking the Flights tab.
+        📌 Origin/Dest Inputs: The Listbox suggestions (role="listbox") are visible after typing into "Flying from" or "Flying to".
+        📌 Auto-Navigation: The "Flying to" input automatically receives focus after selecting an Origin. The "Departure Date" picker automatically opens after selecting a Destination.
+    
+    🎬 Search Results Page (SRP) Specific Conditions:
+        📌 Page Load: The URL contains "/search" and the Flight Filter Sidebar is visible.
+        📌 Filtering: The flight list updates (loading spinner disappears) after applying a filter (e.g., "Direct" stops).
+        📌 Expansion: The flight details section (legs/terminals) becomes visible after clicking "Expand flight details".
 
 🟠 Status: RETRY
-    🕹️ Trigger: Handling UI Latency and "Click-Blocking" overlays.
-    🎬 Homepage Specific Scenarios & Fixes:
+    🕹️ Trigger: Handling UI Latency, "Click-Blocking" overlays, and Focus loss.
+    🎬 Homepage seach Hotels Specific Scenarios & Fixes:
         📌 Scenario: Click on "Search Button" failed because it was obscured by the Date Picker or Occupancy Popover.
             Fix: Dispatch a click to the page body or [data-element-name="search-box-layout"] to close the open popover, then retry the Search button click.
         📌 Scenario: Auto-complete suggestions ([data-testid="autosuggest-item"]) did not appear after typing.
             Fix: Clear the input (fill("")) -> Wait 500ms -> Re-type the keyword -> Wait for networkidle.
         📌 Scenario: Target Date is not visible in the current 2-month calendar view.
             Fix: Click [data-selenium="calendar-next-month-button"] -> Check visibility again. (Repeat up to 12 times).
+    🎬 Homepage seach Flights Specific Scenarios & Fixes:
+        📌 Scenario: Click on "Search Button" failed because it was obscured by the Date Picker or Occupancy Popover.
+            Fix: Dispatch a click to the page body or [data-element-name="search-box-layout"] to close the open popover, then retry the Search button click.
+        📌 Scenario: Auto-complete suggestions did not appear after typing.
+            Fix: Clear the input (fill("")) -> Wait 500ms -> Re-type the keyword -> Wait for networkidle.
+        📌 Scenario: search Flights "Flying to" input did not auto-focus after selecting Origin.
+            Fix: Explicitly click the "Flying to" combobox before attempting to type.
+        📌 Scenario: Target Date is not visible in the current 2-month calendar view.
+            Fix: Click "Next Month" button -> Check visibility again. (Repeat up to 12 times).
 
 🔵 Status: SKIP
     🕹️ Trigger: Default values match requirements or optional UI elements.
-    🎬 Homepage Specific Scenarios:
+    🎬 Homepage search Hotels Specific Scenarios:
         📌 Occupancy Defaults: If the test case requires "2 Adults" and the Occupancy Box text already reads "2 Adults", SKIP opening the Occupancy Popover.
         📌 Date Defaults: If the test case allows "Any Date" or "Today/Tomorrow", and the inputs are pre-filled, SKIP the Date Picker interaction.
         📌 Promotional Modals: If a "Coupons" or "Sign In" modal appears on load, SKIP normal flow to close it (.close-button) before proceeding.
-
+    🎬 Homepage search Flights Specific Scenarios:
+        📌 Trip Type Defaults: If the test requires "One-way" and the "One-way" toggle already has `aria-pressed="true"`, SKIP clicking it.
+        📌 Occupancy Defaults: If the test case requires "1 Adult" and the text already reads "1", SKIP opening the Passenger Popover.
+        📌 Promotional Modals: If a "Coupons" or "Sign In" modal appears on load, SKIP normal flow to close it (.close-button) before proceeding.
+    
 🔴 Status: ABORT
-    🕹️ Trigger: Critical Search Console failure.
-    🎬 Homepage Specific Scenarios:
+    🕹️ Trigger: Critical Search Console failure or No Inventory.
+    🎬 General Scenarios:
+        📌 Broken Search: The "Search" button remains disabled (`disabled` attribute) even after all fields are validly filled.
+        📌 No Suggestions: The API returns no results for a known valid city (e.g., "Hong Kong") after 3 retries.
+    🎬 Homepage search Hotels Specific Scenarios:
         📌 Broken Search: The "Search" button remains disabled (disabled attribute) even after all fields (Dest, Dates, Occupancy) are validly filled.
         📌 No Suggestions: The API returns no results for a known valid city (e.g., "Hong Kong") after 3 retries (indicates API down).
         📌 Calendar Freeze: The Date Picker does not open when clicking the Check-in box.
+    🎬 Homepage search Flights Specific Scenarios:
+        📌 Calendar Freeze: The Flight Date Picker does not open when clicking the Departure input.
+        📌 No Inventory: SRP loads but displays a "No flights found" or "Adjust your search" error message instead of a list.
+
 ===============
 🎯 TEST COMPLETION SIGNALS:
 ✅ Test Case Status: COMPLETE (PASS)

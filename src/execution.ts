@@ -38,34 +38,36 @@ async function execution() {
         const rawMarkdown = FileHelper.readTextFile(`${TESTS_DIR}/${file}`);
         console.log("[🚁🚁🚁] >> 🏗️ Parsing test case...");
 
-        let testCase: TestCase;
+        let listTestCase: [TestCase];
         try {
-            testCase = await extractor.parse(rawMarkdown);
-            console.log(`[🚁🚁🚁] >> ✅ Loaded successfully:\n${JSON.stringify(testCase, null, 2)}`);
+            listTestCase = await extractor.parse(rawMarkdown) as [TestCase];
+            console.log(`[🚁🚁🚁] >> ✅ Loaded successfully:\n${JSON.stringify(listTestCase, null, 2)}`);
         } catch (error) {
             console.error(`[🚁🚁🚁] >> ❌ Failed to prase "${file}":`, error);
         }
         const testName = file.replace('.md', '');
 
-        // EXECUTING TESTCASE
-        await autoBot.startBrowser(testName);
-
         autoBot.actionLogs = [];
-        for (const step of testCase!.steps) {
-            await autoBot.executeStep(step.action, step.notes);
-        }
-        await autoBot.stopBrowser();
+        for (let testCase of listTestCase!) {
+            // EXECUTING TESTCASE
+            await autoBot.startBrowser(testCase!.title);
+            
+            for (let step of testCase!.steps) {
+                await autoBot.executeStep(step.action, step.notes);
+            }
+            await autoBot.stopBrowser();
 
-        // POST EXECUTION
-        const reportData = {
-            testFile: file,
-            testTitle: testCase!.title,
-            testGoal: testCase!.goal,
-            testStep: testCase!.steps,
-            executionLogs: autoBot.actionLogs, // <--- The Evaluator will need this later
-            timestamp: new Date().toISOString()
-        };
-        await autoBot.extractLog(testName, reportData);
+            // POST EXECUTION
+            const reportData = {
+                testFile: file,
+                testTitle: testCase!.title,
+                testGoal: testCase!.goal,
+                testStep: testCase!.steps,
+                executionLogs: autoBot.actionLogs,
+                timestamp: new Date().toISOString()
+            };
+            await autoBot.extractLog(testName, reportData);
+        }
     }
 }
 

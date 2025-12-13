@@ -10,7 +10,7 @@ The page is divided into vertical sections:
     📌 Promotional Content: Dynamic carousels for Top Destinations, Accommodation Promotions, and Flagship Properties.
     📌 Footer: Legal, links, and SEO content.
 ===============
-🧩 COMPONENTS:
+🧩 SEARCH HOTEL COMPONENTS:
 1️⃣. Search Input field:
     🔑 Keywords in testcase: search field, search bar, Enter a destination or property, destination input
     🗺️ Locator references: [data-selenium="textInput"]
@@ -58,7 +58,59 @@ The page is divided into vertical sections:
     👨‍🏫 Interaction and Keynotes:
         📌 Prerequisite: This button functions correctly only if Destination, Dates, and Occupancy are valid.
         📌 Navigation: Clicking this triggers a page load. Automation scripts should await the load event or the appearance of a result element on the next page.
+===============
+🧩 SEARCH FLIGHTS COMPONENTS:
+1️⃣. Service Navigation Tabs:
+    🔑 Keywords in testcase: flights tab, switch to flights
+    🗺️ Locator references: role=tab, name="Flights"
+    ⚙️ Function: Context switcher that changes the Hero Section from "Hotels" mode to "Flights" mode.
+    👨‍🏫 Interaction and Keynotes:
+        📌 Activation: Must be clicked to reveal flight-specific inputs (Origin/Dest). Verify `aria-selected="true"`.
 
+2️⃣. Trip Type Toggles:
+    🔑 Keywords in testcase: one-way, round-trip, return ticket
+    🗺️ Locator references: role=button, name="One-way" | name="Round-trip"
+    ⚙️ Function: Determines if the search requires a Return Date.
+    👨‍🏫 Interaction and Keynotes:
+        📌 State: Use `aria-pressed="true"` to verify the active state.
+        📌 Impact: Selecting "Round-trip" enables the Return Date input.
+
+3️⃣. Origin and Destination Inputs:
+    🔑 Keywords in testcase: flying from, flying to, departure airport, arrival airport
+    🗺️ Locator references: 
+        📌 Origin: role=combobox, name="Flying from"
+        📌 Destination: role=combobox, name="Flying to"
+    ⚙️ Function: Inputs for selecting airports/cities.
+    👨‍🏫 Interaction and Keynotes:
+        📌 Autocomplete: Typing text triggers a `listbox` popup.
+        📌 Selection: Users must click a result from the listbox (e.g., `role=option`). Options include "All airports" (Generic) or specific airport codes (e.g., "SGN").
+        📌 Chain Reaction: Selecting the "Flying to" destination often automatically opens the Departure Date Picker.
+
+4️⃣. Flight Date Picker:
+    🔑 Keywords in testcase: flight date, departure date
+    🗺️ Locator references: role=combobox, name=/Departure Date picker/
+    ⚙️ Function: Calendar widget specifically for flight dates.
+    👨‍🏫 Interaction and Keynotes:
+        📌 Grid: Similar to Hotel calendar (role=gridcell buttons).
+        📌 Disabled State: Past dates are disabled (`disabled=true`).
+        📌 Selection: Clicking a date closes the popover (for One-way) or moves focus to Return Date.
+
+5️⃣. Flight Occupancy & Class:
+    🔑 Keywords in testcase: passengers, cabin class, economy, business class, add child
+    🗺️ Locator references: role=button, name="Passengers and cabin class"
+    ⚙️ Function: Opens a popover to configure passenger mix and seat class.
+    👨‍🏫 Interaction and Keynotes:
+        📌 Counters: Specific `role=button` elements for "Plus/Minus Adult", "Plus/Minus Children", "Plus/Minus Infants".
+        📌 Class Selection: Radio-style buttons for "Economy", "Premium economy", "Business", "First".
+        📌 Verification: Verify class selection using `aria-pressed="true"`.
+
+6️⃣. Flight Search Button:
+    🔑 Keywords in testcase: search flights, find flights
+    🗺️ Locator references: role=button, name="SEARCH FLIGHTS"
+    ⚙️ Function: Submits flight criteria and navigates to Flight SRP.
+
+===============
+🧩 OTHER COMPONENTS:
 6️⃣. Top Destinations Carousel
     🔑 Keywords in test case: popular cities, top destinations, carousel, slide
     🗺️ Locator references:
