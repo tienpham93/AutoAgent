@@ -16,7 +16,7 @@ async function evaluation() {
 
     // TO GET TEST RUNS RESULTS FROM OUTPUT DIR
     const testRuns = evaluator.getTestRuns(OUTPUT_DIR);
-    console.log(`[📂] Found ${testRuns.length} test runs to evaluate.`);
+    console.log(`[🕵️🕵️🕵️] >> 📂 Found ${testRuns.length} test runs to evaluate.`);
 
     for (const run of testRuns) {
         try {
@@ -30,7 +30,7 @@ async function evaluation() {
 
             evaluator.appendEvaluationResult(finalRecord, 'evaluations.json');
         } catch (error) {
-            console.error(`[❌] Failed to evaluate ${run.folderName}`);
+            console.error(`[🕵️🕵️🕵️] >> ❌ Failed to evaluate ${run.folderName}`);
         }
     }
 }

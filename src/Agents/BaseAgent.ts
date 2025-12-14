@@ -117,15 +117,16 @@ export class BaseAgent {
                 });
 
                 const result = await model.generateContent(contentParts);
-                return result.response.text();
-
+                const responseText = await result.response.text();
+                console.log(`[🕵️🕵️🕵️] >> ✅ Received response from LLM agent`);
+                return await responseText;
             } catch (error: any) {
                 if (this.isQuotaError(error)) {
-                    console.log(`[🤖🤖🤖] >> ${this.config.vendor?.toUpperCase()} ⏳ Waiting 10s to respect quota...`);
+                    console.log(`[🕵️🕵️🕵️] >> ⏳ Waiting 10s to respect quota...`);
                     await new Promise(resolve => setTimeout(resolve, 10000));
                     attempt++;
                 } else {
-                    console.error(`[🤖🤖🤖] >> ${this.config.vendor?.toUpperCase()} ☠️ Error:`, error);
+                    console.error(`[🕵️🕵️🕵️] >> ☠️ Error:`, error);
                     break; 
                 }
             }
