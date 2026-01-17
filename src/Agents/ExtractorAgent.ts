@@ -7,8 +7,8 @@ export class ExtractorAgent extends BaseAgent {
     }
 
     async parse(rawMarkdown: string): Promise<any> {
-        const result = await this.sendToLLM(rawMarkdown);
-        // Clean up code blocks if Gemini adds them
+        const result = await this.sendToLLM(rawMarkdown, "extraction-session");
+        // Clean up code blocks if LLM adds them
         const cleanJson = result.replace(/```json/g, "").replace(/```/g, "").trim();
         return await JSON.parse(cleanJson);
     }

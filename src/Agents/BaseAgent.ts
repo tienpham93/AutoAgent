@@ -1,61 +1,38 @@
-import { GenerativeModel, ChatSession, GoogleGenerativeAI } from "@google/generative-ai";
-import Anthropic from "@anthropic-ai/sdk";
-import { AgentConfig, LLMVendor } from "../types";
-import { GoogleAIFileManager } from "@google/generative-ai/server";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatAnthropic } from "@langchain/anthropic";
+import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { RunnableConfig } from "@langchain/core/runnables";
+import {
+    StateGraph,
+    MessagesAnnotation,
+    START,
+    END,
+} from "@langchain/langgraph";
+import { GoogleAIFileManager, FileState } from "@google/generative-ai/server"; // Import Google File Helpers
+import * as path from 'path';
+import { AgentConfig, AgentFlow, AgentState, AgentUpdate, LLMVendor, UploadedFileCtx } from "../types";
+import { FileHelper } from "../Utils/FileHelper";
+import * as nunjucks from "nunjucks";
 
 export class BaseAgent {
-    // Configuration
     protected config: AgentConfig;
-    protected fileManager: GoogleAIFileManager | any;
-    protected localGenAI: GoogleGenerativeAI | any; 
+    protected model!: BaseChatModel;
+    protected apiKey: string;
+    protected fileManager?: GoogleAIFileManager;
 
-    // Vendor Specific State
-    private geminiModel?: GenerativeModel;
-    private geminiChat?: ChatSession;
-    private claudeClient?: Anthropic;
-    private claudeHistory: Anthropic.MessageParam[] = [];
+    public agentFlow: AgentFlow;
 
     constructor(config: AgentConfig) {
-        this.config = { vendor: LLMVendor.GEMINI, ...config };
+        this.config = {
+            vendor: LLMVendor.GEMINI, ...config
+        };
+        this.apiKey = config.apiKey;
+
         this.initializeVendor();
+        this.agentFlow = this.initAgentFlow();
     }
 
-
-    /**
-     * 🚀 Public Methods to send user's request to LLMs
-     */
-    public async sendToLLM(message: string, maxRetries = 5): Promise<string> {
-        let attempt = 0;
-
-        while (attempt < maxRetries) {
-            try {
-                // Route execution based on vendor
-                switch (this.config.vendor) {
-                    case LLMVendor.CLAUDE:
-                        return await this._callClaude(message);
-                    case LLMVendor.GEMINI:
-                    default:
-                        return await this._callGemini(message);
-                }
-
-            } catch (error: any) {
-                if (this.isQuotaError(error)) {
-                    console.log(`[🤖🤖🤖] >> ${this.config.vendor?.toUpperCase()} ⏳ Waiting 10s to respect quota...`);
-                    await new Promise(resolve => setTimeout(resolve, 10000));
-                    attempt++;
-                } else {
-                    console.error(`[🤖🤖🤖] >> ${this.config.vendor?.toUpperCase()} ☠️ Error:`, error);
-                    break; 
-                }
-            }
-        }
-        return "{}"; // Fail safe
-    }
-
-
-    /**
-     * 🏭 Vendor Factory: Switch case to handle initialization
-     */
     private initializeVendor(): void {
         switch (this.config.vendor) {
             case LLMVendor.CLAUDE:
@@ -68,112 +45,173 @@ export class BaseAgent {
         }
     }
 
-    private _initGemini() {
-        const genAI = new GoogleGenerativeAI(this.config.apiKey);
-        this.geminiModel = genAI.getGenerativeModel({
-            model: this.config.model,
-            systemInstruction: this.buildSystemPrompt()
-        });
-        this.geminiChat = this.geminiModel.startChat();
-    }
-
-    private _initClaude() {
-        this.claudeClient = new Anthropic({
+    private _initGemini(): void {
+        this.model = new ChatGoogleGenerativeAI({
             apiKey: this.config.apiKey,
-        });
-        // Claude is stateless; system prompt is passed per request
-    }
-
-
-    /**
-     * 🏅 Vendor Callers
-     * Methods to interact with specific LLM vendors
-     */
-    private async _callGemini(message: string): Promise<string> {
-        if (!this.geminiChat) throw new Error("Gemini Chat not initialized");
-        
-        const result = await this.geminiChat.sendMessage(message);
-        return result.response.text();
-    }
-
-    protected async callGeminiWithMultiVideo(message: string, files: any[], maxRetries = 5): Promise<string> {
-        let attempt = 0;
-        
-        const model = this.localGenAI.getGenerativeModel({ 
             model: this.config.model,
-            systemInstruction: this.config.persona 
+            convertSystemMessageToHumanContent: true,
         });
+    }
 
-        while (attempt < maxRetries) {
-            try {
-                // Construct the Multi-modal Payload
-                // We map the array of files into the format Gemini expects
-                const contentParts: any[] = [{ text: message }];
-                
-                files.forEach(file => {
-                    contentParts.push({
-                        fileData: { mimeType: file.mimeType, fileUri: file.uri }
-                    });
-                });
+    private _initClaude(): void {
+        this.model = new ChatAnthropic({
+            apiKey: this.config.apiKey,
+            modelName: this.config.model,
+        });
+    }
 
-                const result = await model.generateContent(contentParts);
-                const responseText = await result.response.text();
-                console.log(`[🕵️🕵️🕵️] >> ✅ Received response from LLM agent`);
-                return await responseText;
-            } catch (error: any) {
-                if (this.isQuotaError(error)) {
-                    console.log(`[🕵️🕵️🕵️] >> ⏳ Waiting 10s to respect quota...`);
-                    await new Promise(resolve => setTimeout(resolve, 10000));
-                    attempt++;
-                } else {
-                    console.error(`[🕵️🕵️🕵️] >> ☠️ Error:`, error);
-                    break; 
+    private buildSystemPrompt(): string {
+        const personaTemplate = FileHelper.retrieveNjkTemplate(this.config.personaTemplatePath!);
+
+        let additionalContextsRendered = [];
+        for (let context of this.config.additionalContexts!) {
+            // Check if additionalContexts is file path string or raw string
+            const contextContent = FileHelper.isFilePath(context)
+                ? FileHelper.retrieveNjkTemplate(context)
+                : context;
+            additionalContextsRendered.push(contextContent);
+        }
+
+        return nunjucks.renderString(personaTemplate, {
+            AdditionalContexts: additionalContextsRendered.join("\n\n"),
+        });
+    }
+
+    private initAgentFlow(): AgentFlow {
+        const initAgentWithSystemPrompts = async (state: AgentState): Promise<AgentUpdate> => {
+            const systemPrompt = new SystemMessage(this.buildSystemPrompt());
+            const messages = [systemPrompt, ...state.messages];
+            const response = await this.model.invoke(messages);
+
+            // Returns AgentUpdate
+            return { messages: [response] };
+        };
+
+        const workflow = new StateGraph(MessagesAnnotation)
+            .addNode("agent", initAgentWithSystemPrompts, {
+                retryPolicy: {
+                    initialInterval: 2000,
+                    backoffFactor: 2,
+                    maxAttempts: 5,
                 }
+            })
+            .addEdge(START, "agent")
+            .addEdge("agent", END);
+
+        return workflow.compile();
+    }
+
+    protected async uploadMediaFiles(filePaths: string[]): Promise<UploadedFileCtx[]> {
+        this.fileManager = new GoogleAIFileManager(this.apiKey);
+        const uploadedFiles: UploadedFileCtx[] = [];
+
+        for (const filePath of filePaths) {
+            console.log(`[BaseAgent] >> 📤 Uploading: ${path.basename(filePath)}`);
+
+            // 1. Upload
+            const uploadResponse = await this.fileManager.uploadFile(filePath, {
+                mimeType: "video/webm", // Should be dynamic based on extension in production
+                displayName: path.basename(filePath),
+            });
+
+            // 2. Wait for Processing
+            let fileState = uploadResponse.file.state;
+            let currentFile = uploadResponse.file;
+
+            process.stdout.write(`[BaseAgent] >> ⏳ Processing ${currentFile.displayName}`);
+            while (fileState === FileState.PROCESSING) {
+                await new Promise((resolve) => setTimeout(resolve, 2000));
+                process.stdout.write(".");
+                const freshState = await this.fileManager.getFile(currentFile.name);
+                fileState = freshState.state;
+                currentFile = freshState;
+            }
+            console.log(" Done.");
+
+            if (fileState === FileState.FAILED) {
+                throw new Error(`Processing failed for file: ${filePath}`);
+            }
+
+            uploadedFiles.push({
+                name: currentFile.name,
+                uri: currentFile.uri,
+                mimeType: currentFile.mimeType,
+            });
+        }
+
+        return uploadedFiles;
+    }
+
+    protected async cleanupMediaFiles(files: UploadedFileCtx[]): Promise<void> {
+        if (!this.fileManager) return;
+
+        console.log(`[BaseAgent] >> 🧹 Cleaning up ${files.length} cloud file(s)...`);
+        for (const file of files) {
+            try {
+                await this.fileManager.deleteFile(file.name);
+            } catch (error) {
+                console.warn(`[BaseAgent] >> ⚠️ Failed to delete ${file.name}:`, error);
             }
         }
-        throw new Error(`Failed to generate evaluation after ${maxRetries} attempts.`);
     }
 
-    private async _callClaude(message: string): Promise<string> {
-        if (!this.claudeClient) throw new Error("Claude Client not initialized");
+    public async sendVideosToLLM(prompt: string, videoPaths: string[], threadId: string = "default"): Promise<string> {
+        let uploadedFiles: UploadedFileCtx[] = [];
 
-        // Maintain History Manually
-        this.claudeHistory.push({ role: 'user', content: message });
+        try {
+            // Upload Files
+            uploadedFiles = await this.uploadMediaFiles(videoPaths);
 
-        // Send Request
-        const response = await this.claudeClient.messages.create({
-            model: this.config.model,
-            max_tokens: 4096,
-            system: this.buildSystemPrompt(), 
-            messages: this.claudeHistory,
-        });
+            // Construct LangChain Content for Gemini content parts { type: 'text' | 'media' }
+            const messageContent: any[] = [
+                { type: "text", text: prompt },
+                ...uploadedFiles.map(f => ({
+                    type: "media",
+                    mimeType: f.mimeType,
+                    fileUri: f.uri
+                }))
+            ];
 
-        // Extract & Update History
-        const textBlock = response.content.find(block => block.type === 'text');
-        const responseText = textBlock?.type === 'text' ? textBlock.text : "";
+            const input: AgentState = {
+                messages: [new HumanMessage({ content: messageContent })]
+            };
 
-        this.claudeHistory.push({ role: 'assistant', content: responseText });
+            const config: RunnableConfig = {
+                configurable: { thread_id: threadId }
+            };
 
-        return responseText;
+            // Invoke Agent
+            const result = await this.agentFlow.invoke(input, config) as AgentState;
+            const lastMessage = result.messages[result.messages.length - 1];
+
+            return lastMessage?.content?.toString() || "{}";
+
+        } catch (error) {
+            console.error(`[BaseAgent] Execution Error:`, error);
+            return "{}";
+        }
     }
 
-    
-    /**
-     * ⚙️ Utility Methods
-     * Helper functions for prompt building and error handling
-     */
-    private buildSystemPrompt(): string {
-        return this.config.persona + 
-               (this.config.initialContexts ? "\n" + this.config.initialContexts.join("\n") : "");
+    public async sendToLLM(message: string, threadId: string = "default"): Promise<string> {
+        try {
+            const input: AgentState = {
+                messages: [new HumanMessage(message)]
+            };
+
+            const config: RunnableConfig = {
+                configurable: { thread_id: threadId }
+            };
+
+            const result = await this.agentFlow.invoke(input, config) as AgentState;
+
+            const lastMessage = result.messages[result.messages.length - 1];
+
+            return lastMessage?.content?.toString() || "{}";
+        } catch (error) {
+            console.error(`[BaseAgent] Execution Error:`, error);
+            return "{}";
+        }
     }
 
-    private isQuotaError(error: any): boolean {
-        const msg = (error.message || "").toLowerCase();
-        return (
-            msg.includes("429") || 
-            msg.includes("503") || 
-            msg.includes("too many requests") ||
-            error.status === 429
-        );
-    }
+
 }

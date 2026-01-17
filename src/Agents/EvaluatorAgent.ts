@@ -1,5 +1,3 @@
-import { GoogleAIFileManager, FileState } from "@google/generative-ai/server";
-import { GoogleGenerativeAI } from "@google/generative-ai"; 
 import { AgentConfig, EvaluationResult, LLMVendor, TestRunData } from "../types";
 import { BaseAgent } from "./BaseAgent";
 import * as fs from 'fs';
@@ -9,14 +7,12 @@ export class EvaluatorAgent extends BaseAgent {
     constructor(config: AgentConfig) {
         super({ 
             ...config, 
-            vendor: LLMVendor.GEMINI // Force Gemini for evaluation
+            vendor: LLMVendor.GEMINI // Only Gemini supported video anlysis seamlessly
         });
-        this.fileManager = new GoogleAIFileManager(config.apiKey);
-        this.localGenAI = new GoogleGenerativeAI(config.apiKey);
     }
 
     /**
-     * 🔍 Scans directory for JSON logs and ALL .webm videos (sorted by creation time)
+     * 🔍 Scans directory for JSON logs and ALL .webm videos
      */
     public getTestRuns(directory: string): TestRunData[] {
         const runs: TestRunData[] = [];
@@ -34,7 +30,7 @@ export class EvaluatorAgent extends BaseAgent {
             const videoFiles = files.filter(f => f.endsWith('.webm'));
             
             if (jsonFile && videoFiles.length > 0) {
-                // Sort: Oldest first (Main Window), Newest last (Popups)
+                // Sort by creation time
                 videoFiles.sort((a, b) => {
                     const timeA = fs.statSync(path.join(folderPath, a)).birthtimeMs;
                     const timeB = fs.statSync(path.join(folderPath, b)).birthtimeMs;
@@ -53,12 +49,12 @@ export class EvaluatorAgent extends BaseAgent {
     }
 
     /**
-     * 💾 Saves results to JSON, handling file creation and array appending.
+     * 💾 Saves results to JSON
      */
     public appendEvaluationResult(result: any, targetFilePath: string): void {
         let evaluations: any[] = [];
-        
         const directory = path.dirname(targetFilePath);
+        
         if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true });
 
         if (fs.existsSync(targetFilePath)) {
@@ -66,7 +62,7 @@ export class EvaluatorAgent extends BaseAgent {
                 const raw = fs.readFileSync(targetFilePath, 'utf-8');
                 evaluations = JSON.parse(raw);
             } catch (e) {
-                console.warn("[🕵️🕵️🕵️] >> ⚠️ Existing file corrupted. Starting fresh.");
+                console.warn("[Evaluator] >> ⚠️ Existing file corrupted. Starting fresh.");
             }
         }
         
@@ -74,71 +70,46 @@ export class EvaluatorAgent extends BaseAgent {
 
         try {
             fs.writeFileSync(targetFilePath, JSON.stringify(evaluations, null, 2));
-            console.log(`[🕵️🕵️🕵️] >> 💾 Result saved to ${path.basename(targetFilePath)}`);
+            console.log(`[Evaluator] >> 💾 Result saved to ${path.basename(targetFilePath)}`);
         } catch (e) {
-            console.error(`[🕵️🕵️🕵️] >> ❌ Save failed: ${e}`);
+            console.error(`[Evaluator] >> ❌ Save failed: ${e}`);
         }
     }
 
     /**
-     * 👉 You can view uploaded videos through https://aistudio.google.com/app/library
-     * Note: Files uploaded via the File API generally expire after 48 hours
+     * 👉 Analyzes the run by delegating video processing to BaseAgent
      */
     public async evaluateRun(videoPaths: string[], jsonPath: string): Promise<EvaluationResult> {
-        console.log(`[🕵️🕵️🕵️] >> 🎬 Analyzing ${videoPaths.length} video(s)...`);
+        console.log(`[Evaluator] >> 🎬 Preparing analysis for ${videoPaths.length} video(s)...`);
         
         if (!fs.existsSync(jsonPath)) throw new Error(`JSON Log not found: ${jsonPath}`);
         const testLogContext = fs.readFileSync(jsonPath, 'utf-8');
 
-        const uploadedFiles: any[] = [];
+        // Construct the prompt
+        const prompt = `
+            Analyze these video recordings of an automation test.
+            
+            ***CONTEXT***
+            There are ${videoPaths.length} videos provided. 
+            If there are more than one video, treat them as a continuous sequence (Main browser tab -> next browser tab).
+            
+            ***TEST LOG DATA***
+            ${testLogContext}
+            
+            ***TASK***
+            Follow the PERSONA rules provided in the system message. 
+            Return strictly Valid JSON without Markdown formatting.
+        `;
+
+        // Delegate to BaseAgent
+        // This handles upload, processing, LLM invocation, and cleanup automatically
+        const responseText = await this.sendVideosToLLM(prompt, videoPaths, `eval-${Date.now()}`);
 
         try {
-            // Upload All Videos
-            for (const vPath of videoPaths) {
-                console.log(`[🕵️🕵️🕵️] >> 📤 Uploading: ${path.basename(vPath)}`);
-                const upload = await this.fileManager.uploadFile(vPath, {
-                    mimeType: "video/webm",
-                    displayName: "Test Video Segment",
-                });
-                uploadedFiles.push(upload.file);
-            }
-
-            // Wait for Processing
-            console.log("[🕵️🕵️🕵️] >> ⏳ Waiting for Google to process videos...");
-            for (const file of uploadedFiles) {
-                let current = await this.fileManager.getFile(file.name);
-                while (current.state === FileState.PROCESSING) {
-                    await new Promise(r => setTimeout(r, 2000));
-                    current = await this.fileManager.getFile(file.name);
-                }
-                if (current.state === FileState.FAILED) throw new Error(`Video processing failed for ${file.name}`);
-            }
-
-            const prompt = `
-                Analyze these video recordings of an automation test.
-                ***CONTEXT***
-                There are ${uploadedFiles.length} videos provided. 
-                If there are more than one video, treat them as a continuous sequence (Main browser tab -> next browser tab).
-                ***TEST LOG DATA***
-                ${testLogContext}
-                ***TASK***
-                Follow the PERSONA rules. Return JSON.
-            `;
-
-            const responseText = await this.callGeminiWithMultiVideo(prompt, uploadedFiles);
-
-            // Cleanup
-            for (const file of uploadedFiles) await this.fileManager.deleteFile(file.name);
-
             const cleanJson = responseText.replace(/```json|```/g, '').trim();
             return JSON.parse(cleanJson) as EvaluationResult;
-
         } catch (error) {
-            console.error("[🕵️🕵️🕵️] >> ❌ Error:", error);
-            // Cleanup on error
-            for (const file of uploadedFiles) {
-                try { await this.fileManager.deleteFile(file.name); } catch(e) {}
-            }
+            console.error("[Evaluator] >> ❌ JSON Parsing Error on response:", responseText);
             throw error;
         }
     }

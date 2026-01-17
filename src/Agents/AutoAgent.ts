@@ -1,26 +1,167 @@
 import { Browser, Page, chromium, BrowserContext } from "playwright";
+import { HumanMessage } from "@langchain/core/messages";
+import { StateGraph, START, END, Annotation, MessagesAnnotation } from "@langchain/langgraph";
 import { BaseAgent } from "./BaseAgent";
-import config from '../../playwright.config';
-import { AgentConfig } from "../types";
+import { AgentConfig, AgentState, AutomationState } from "../types";
 import { FileHelper } from "../Utils/FileHelper";
 import { CONTEXTS_DIR, WORKFLOWS_DIR } from "../settings";
+import playwrightConfig from '../../playwright.config';
+import * as nunjucks from "nunjucks";
+
+const automationStateSchema: AutomationState = Annotation.Root({
+    messages: MessagesAnnotation.spec.messages,
+    step: Annotation<string>(),
+    notes: Annotation<string[]>(),
+    snapshot: Annotation<string>(),
+    error: Annotation<string | null>(),
+    success: Annotation<boolean>(),
+    attempts: Annotation<number>(),
+    threadId: Annotation<string>(),
+});
+
+type AutoState = typeof automationStateSchema.State;
 
 export class AutoAgent extends BaseAgent {
-    private browser: Browser | any;
+    // Playwright Properties
+    private browser: Browser | null = null;
+    private context: BrowserContext | null = null;
     public page: Page | any;
-    private context: BrowserContext | any;
+
+    // Reporting & Debugging
     public actionLogs: string[] = [];
     public testOutputDir: string = '';
     public debugDir: string = 'src/Debug/Elements/';
-    private pageTitle: string = '';
-    private currentUrl: string = '';
+
+    private automationFlow: ReturnType<AutoAgent["initAutomationFlow"]>;
 
     constructor(config: AgentConfig) {
         super(config);
+        this.automationFlow = this.initAutomationFlow();
+    }
+
+    /**
+     * 🕸️ LangGraph Orchestration
+     * Defines the flow: Generate -> Execute -> (Success? End : Retry)
+     */
+    private initAutomationFlow() {
+        // NODE 1: Generator - Writes the Playwright script
+        const generatorNode = async (state: AutoState) => {
+            const url = this.page.url();
+            const title = await this.page.title();
+            const knowledge = this.detectPageContext(title, url);
+
+            // Construct the multi-section prompt for the LLM
+            let fullPrompt = `
+                ***KNOWLEDGE BASE***
+                PAGE CONTEXTS: ${knowledge?.contexts || 'N/A'}
+                PAGE WORKFLOWS: ${knowledge?.workflow || 'N/A'}
+                
+                ***CURRENT PAGE STATE***
+                URL: ${url}
+                SNAPSHOT (Accessibility Tree):
+                ${state.snapshot}
+                
+                ***TASK***
+                STEP TO EXECUTE: "${state.step}"
+                CRITICAL NOTES: ${state.notes.join(' | ') || 'None'}
+            `;
+
+            if (state.error) {
+                fullPrompt += `
+                \n------------------------------
+                ⚠️ PREVIOUS ATTEMPT FAILED ⚠️
+                ERROR ENCOUNTERED: "${state.error}"
+                
+                RECOVERY INSTRUCTION:
+                The code you generated previously threw the error above. 
+                1. Analyze the Error Message above.
+                2. If the error suggests a timeout, probably the elements doesn't present, so that must look for the notes in that step first.
+                3. Find instructions in page contexts and workflows to better address the step.
+                4. If the errors regarding elements/locators, hence Do NOT repeat the exact same code/selector.
+                5. Use the "CURRENT PAGE STATE" to find a better selector (e.g., if ID failed, try text or aria-label).
+                `;
+            }
+
+            // Call the BaseAgent's brain
+            const responseText = await this.sendToLLM(fullPrompt, state.threadId);
+
+            return {
+                // We store the response in history so the LLM remembers its previous code in the next retry
+                messages: [new HumanMessage(responseText)],
+                attempts: state.attempts + 1
+            };
+        };
+
+        // NODE 2: Executor - Runs the script in the real browser
+        const executorNode = async (state: AgentState) => {
+            const lastMessage = state.messages[state.messages.length - 1];
+            const code = this.extractCode(lastMessage.content.toString());
+
+            try {
+                const page = this.page;
+                // Execute in the real browser
+                await eval(`(async () => { ${code} })()`);
+                return { success: true, error: null };
+            } catch (e: any) {
+                console.error(`[💥] Execution Error: ${e.message}`);
+                return { success: false, error: e.message };
+            }
+        };
+
+        // Define the Workflow
+        const workflow = new StateGraph(automationStateSchema)
+            .addNode("generator", generatorNode)
+            .addNode("executor", executorNode)
+            .addEdge(START, "generator")
+            .addEdge("generator", "executor")
+            // 🔄 The "Self-Healing" Edge
+            .addConditionalEdges("executor", (state) => {
+                if (state.success) return "end";
+                if (state.attempts >= 3) return "end"; // Max retries
+                return "generator"; // Retry!
+            }, {
+                "end": END,
+                "generator": "generator"
+            });
+
+        return workflow.compile();
+    }
+
+    public async extractLog(testName: string, data: any): Promise<void> {
+        try {
+            FileHelper.writeFile(this.testOutputDir, `${testName}.json`, data);
+            console.log(`[🤖🤖🤖] >> ⏹️ Extract log: ${testName}.json`);
+        } catch (error) {
+            console.error(`[🤖🤖🤖] >> ☠️ Error writing log file: ${error}`);
+        }
+    }
+
+    public async executeStep(step: string, contextNotes: string[]): Promise<void> {
+        const snapshot = await this.waitForUIStability();
+        const threadId = `run_${Date.now()}`; // Unique ID so retries share history
+
+        const result = await this.automationFlow.invoke({
+            messages: [],
+            step,
+            notes: contextNotes,
+            snapshot,
+            attempts: 0,
+            success: false,
+            error: null,
+            threadId
+        });
+
+        if (!result.success) {
+            const finalErrorMsg = `[🤖🤖🤖] >> ☠️ Failed self recovery with Error: ${result.error}`;
+            this.actionLogs.push(`FATAL: ${finalErrorMsg}`);
+            throw new Error(finalErrorMsg);
+        }
+
+        this.actionLogs.push(`Executed: ${step}`);
     }
 
     public async startBrowser(testName?: string): Promise<void> {
-        const use = config.use || {};
+        const use = playwrightConfig.use || {};
         const actionTimeout = use.actionTimeout || 10000;
         const navTimeout = use.navigationTimeout || 30000;
         const timestamp = FileHelper.getTimestamp();
@@ -44,15 +185,8 @@ export class AutoAgent extends BaseAgent {
     }
 
     public async stopBrowser() {
-        await this.browser.close();
-    }
-
-    public async extractLog(testName: string, data: any): Promise<void> {
-        try {
-            FileHelper.writeFile(this.testOutputDir, `${testName}.json`, data);
-            console.log(`[🤖🤖🤖] >> ⏹️ Extract log: ${testName}.json`);
-        } catch (error) {
-            console.error(`[🤖🤖🤖] >> ☠️ Error writing log file: ${error}`);
+        if (this.browser) {
+            await this.browser.close();
         }
     }
 
@@ -69,11 +203,6 @@ export class AutoAgent extends BaseAgent {
         } catch (e) {
             return "Error getting snapshot";
         }
-    }
-
-    public async extractCode(rawText: string): Promise<string> {
-        let clean = rawText.replace(/```javascript/g, "").replace(/```js/g, "").replace(/```/g, "");
-        return clean.trim();
     }
 
     private async waitForUIStability(timeout = 10000): Promise<string> {
@@ -97,122 +226,44 @@ export class AutoAgent extends BaseAgent {
         return previousSnapshot;
     }
 
+
     private detectPageContext(pageTitle: any, currentUrl?: string) {
         const pageKnowledgeBase = [
             {
                 pageTitle: "Agoda Official Site | Free Cancellation & Booking Deals | Over 2 Million Hotels",
                 pageUrl: "https://www.agoda.com/",
-                contextsPath: `${CONTEXTS_DIR}/homepage-context.txt`,
-                workflowPath: `${WORKFLOWS_DIR}/homepage-workflow.txt`
+                contextsPath: `${CONTEXTS_DIR}/homepage-context.njk`,
+                workflowPath: `${WORKFLOWS_DIR}/homepage-workflow.njk`
             },
             {
                 pageTitle: "Agoda | Hotels in Hong Kong | Best Price Guarantee!",
                 pageUrl: "https://www.agoda.com/search",
-                contextsPath: `${CONTEXTS_DIR}/homepage-context.txt`,
-                workflowPath: `${WORKFLOWS_DIR}/homepage-workflow.txt`
+                contextsPath: `${CONTEXTS_DIR}/homepage-context.njk`,
+                workflowPath: `${WORKFLOWS_DIR}/homepage-workflow.njk`
             },
         ];
 
         // Return page context and workflow based on title/url match
         const title = pageTitle.toLowerCase();
         for (const knowledge of pageKnowledgeBase) {
-            if (title.includes(knowledge.pageTitle.toLowerCase()) && 
+            if (title.includes(knowledge.pageTitle.toLowerCase()) &&
                 currentUrl?.includes(knowledge.pageUrl.toLowerCase())) {
                 console.log(`[🤖🤖🤖] >> 💉 Inject page context: ${knowledge.contextsPath}`);
+                const contextsTemplate = FileHelper.retrieveNjkTemplate(knowledge.contextsPath);
                 console.log(`[🤖🤖🤖] >> 💉 Inject page workflow: ${knowledge.workflowPath}`);
+                const workflowTemplate = FileHelper.retrieveNjkTemplate(knowledge.workflowPath);
                 return {
-                    contexts: FileHelper.readTextFile(knowledge.contextsPath),
-                    workflow: FileHelper.readTextFile(knowledge.workflowPath)
+                    // TODO: Implement dynamic data injection if needed
+                    contexts: nunjucks.renderString(contextsTemplate, {}),
+                    workflow: nunjucks.renderString(workflowTemplate, {})
                 }
             }
         }
 
     }
 
-    public async executeStep(step: string, contextNotes: string[], MAX_RETRIES = 3): Promise<void> {
-        let attempt = 0;
-        let lastError: string | null = null;
-    
-        // Retry if there's an error
-        while (attempt < MAX_RETRIES) {
-            const pageElements = await this.waitForUIStability();
 
-            let currentPageTitle = await JSON.parse(pageElements).name;
-            let currentUrl = await this.page.url();
-            let pageKnowledgeBase: any;
-
-            // Check if pageTitle or currentUrl have changed
-            if (this.pageTitle !== currentPageTitle && this.currentUrl !== currentUrl) {
-                this.pageTitle = await JSON.parse(pageElements).name;
-                this.currentUrl = await this.page.url();
-                pageKnowledgeBase = this.detectPageContext(this.pageTitle, this.currentUrl);
-            }
-    
-            let fullPrompt = `
-                ***KNOWLEDGE BASE***
-                PAGE CONTEXTS:
-                ${pageKnowledgeBase?.contexts || 'N/A'}
-                PAGE WORKFLOWS:
-                ${pageKnowledgeBase?.workflow || 'N/A'}
-                ------------------------------
-                ***CURRENT PAGE STATE (JSON)***
-                ${pageElements}
-                ------------------------------
-                ***TESTCASE STEP***
-                ${step}
-                ------------------------------
-                ***NOTES***
-                If Note is NOT empty, please Must follow strictly locator strategy/instruction in notes
-                ${contextNotes.join('\n')}
-            `;
-
-            // console.log(`[🤖🤖🤖] >> 🧠 Sending to LLM with Prompt:\n${fullPrompt}\n`);
-    
-            // Inject last error if exists
-            if (lastError) {
-                fullPrompt = `
-                \n------------------------------
-                *** ⚠️ PREVIOUS ATTEMPT FAILED ⚠️ ***
-                Your last generated code failed to execute.
-                ERROR MESSAGE: "${lastError}"
-                
-                INSTRUCTIONS FOR RECOVERY:
-                1. Analyze the Error Message above.
-                2. If the error suggests a timeout, probably the elements doesn't present, so that must look for the notes in that step first.
-                3. Find instructions in page contexts and workflows to better address the step.
-                4. If the errors regarding elements/locators, hence Do NOT repeat the exact same code/selector.
-                5. Use the "CURRENT PAGE STATE" to find a better selector (e.g., if ID failed, try text or aria-label).
-                ------------------------------
-                `;
-            }
-    
-            const pwRawScript = await this.sendToLLM(fullPrompt);
-            const pwScript = await this.extractCode(pwRawScript);
-            console.log(`[🤖🤖🤖] >> 🦾 Executing step: "${step}"`);
-            console.log(`[🤖🤖🤖] >> 📌 Step Note: "${contextNotes}"`);
-            console.log(`[🤖🤖🤖] >> 🎭 Step Script: "${pwScript}"\n`);
-
-            try {
-                const page = await this.page;
-                await eval(
-                    `(async () => {
-                        ${pwScript} 
-                    })()`
-                );
-                // ✅ SUCCESS: Log and Break Loop
-                this.actionLogs.push(`Executed Success: ${step}`);
-                return; 
-            } catch (e: any) {
-                // ❌ FAILURE: Capture error and loop again
-                lastError = e.message;
-                console.error(`[🤖🤖🤖] >> 💥 Error in Attempt ${attempt + 1} Failed: ${lastError}`);
-                this.actionLogs.push(`Attempt ${attempt + 1} Failed: ${step} - ${lastError}`);
-                attempt++;
-            }
-        }
-    
-        const finalErrorMsg = `[🤖🤖🤖] >> ☠️ Failed self recovery with Error: ${lastError}`;
-        this.actionLogs.push(`FATAL: ${finalErrorMsg}`);
-        throw new Error(finalErrorMsg);
+    private extractCode(text: string): string {
+        return text.replace(/```javascript/gi, "").replace(/```js/gi, "").replace(/```/g, "").trim();
     }
 }

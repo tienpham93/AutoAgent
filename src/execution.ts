@@ -9,10 +9,12 @@ import {
     PERSONA_DIR,
     GEMINI_AUTO_AGENT_KEY,
     GEMINI_AUTO_AGENT_MODEL,
-    TESTS_DIR
+    TESTS_DIR,
+    RULES_DIR
 } from './settings';
+import { CommonHelper } from './Utils/CommonHelper';
 
-const MAX_CONCURRENT_WORKERS = 3; 
+const MAX_CONCURRENT_WORKERS = 2; 
 
 // Single thread execution
 async function testExecuting(file: string) {
@@ -24,14 +26,16 @@ async function testExecuting(file: string) {
         vendor: LLMVendor.GEMINI,
         apiKey: GEMINI_EXTRACTOR_KEY as any,
         model: GEMINI_EXTRACTOR_MODEL,
-        persona: FileHelper.readTextFile(`${PERSONA_DIR}/extractor_persona.txt`)
+        personaTemplatePath: `${PERSONA_DIR}/extractor_persona.njk`,
+        additionalContexts: [`${RULES_DIR}/test_case_extraction_rules.njk`],
     });
 
     const autoBot = new AutoAgent({
         vendor: LLMVendor.GEMINI,
         apiKey: GEMINI_AUTO_AGENT_KEY as any,
         model: GEMINI_AUTO_AGENT_MODEL,
-        persona: FileHelper.readTextFile(`${PERSONA_DIR}/autobot_persona.txt`),
+        personaTemplatePath: `${PERSONA_DIR}/autobot_persona.njk`,
+        additionalContexts: [`${RULES_DIR}/codegen_rules.njk`],
     });
 
     try {
@@ -42,36 +46,41 @@ async function testExecuting(file: string) {
         try {
             listTestCase = await extractor.parse(rawMarkdown) as [TestCase];
             console.log(`[🚁🚁🚁] >> ✅ Loaded successfully:\n${JSON.stringify(listTestCase, null, 2)}`);
+            
+            // DELAY to Cool down after the heavy "Parse" operation
+            await CommonHelper.sleep(5000); 
+
         } catch (error) {
             console.error(`[🚁🚁🚁] >> ❌ Failed to prase "${file}":`, error);
+            return; 
         }
 
         // EXECUTE TEST CASES
         autoBot.actionLogs = [];
-        for (let testCase of listTestCase!) {            
+        for (let testCase of listTestCase!) {      
+            const reportData = {
+                testFile: file,
+                testTitle: testCase!.title,
+                testGoal: testCase!.goal,
+                testStep: testCase!.steps,
+                executionLogs: [...autoBot.actionLogs], 
+                timestamp: new Date().toISOString()
+            };
+
             try {
                 await autoBot.startBrowser(testCase!.title);
-                
+
                 for (let step of testCase!.steps) {
+                    // DELAY to ensures max 30 RPM per worker (Total 60 RPM for 2 workers)
+                    await CommonHelper.sleep(2000); 
+
                     await autoBot.executeStep(step.action, step.notes);
                 }
-                await autoBot.stopBrowser();
-
-                // POST EXECUTION
-                const reportData = {
-                    testFile: file,
-                    testTitle: testCase!.title,
-                    testGoal: testCase!.goal,
-                    testStep: testCase!.steps,
-                    executionLogs: [...autoBot.actionLogs], 
-                    timestamp: new Date().toISOString()
-                };
-                
-                await autoBot.extractLog(testName, reportData);
             } catch (err) {
                 console.error(`[${file}] >> Error in case "${testCase!.title}"`, err);
-                await autoBot.stopBrowser();
             } finally {
+                await autoBot.stopBrowser();
+                await autoBot.extractLog(testName, reportData);
                 autoBot.actionLogs = [];
             }
         }

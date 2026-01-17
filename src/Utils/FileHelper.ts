@@ -23,5 +23,12 @@ export class FileHelper {
         return timestamp;
     }
 
+    static retrieveNjkTemplate(filePath: string): string {
+        return this.readTextFile(filePath);
+    }
+
+    static isFilePath(input: string): boolean {
+        return fs.existsSync(input) && fs.lstatSync(input).isFile();
+    }
 
 }

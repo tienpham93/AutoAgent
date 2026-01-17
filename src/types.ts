@@ -1,3 +1,4 @@
+import { MessagesAnnotation, CompiledStateGraph, StateDefinition, AnnotationRoot, LastValue } from "@langchain/langgraph";
 
 
 export type GeminiClient = {
@@ -23,8 +24,8 @@ export interface AgentConfig {
     vendor?: LLMVendor;
     apiKey: string;
     model: string;
-    persona: string;
-    initialContexts?: string[];
+    personaTemplatePath: string;
+    additionalContexts?: string[];
 }
 
 export enum LLMVendor {
@@ -82,3 +83,32 @@ export interface EvaluationRecord {
     final_judgement: string;
     final_result: "pass" | "fail";
 }
+
+export interface UploadedFileCtx {
+    name: string;
+    uri: string;
+    mimeType: string;
+}
+
+export type AgentState = typeof MessagesAnnotation.State;
+export type AgentUpdate = typeof MessagesAnnotation.Update;
+
+export type AgentFlow = CompiledStateGraph<
+    AgentState,         // S: The full State
+    AgentUpdate,        // U: The Update type (what nodes return)
+    string,             // N: The Node names (union of strings)
+    StateDefinition,    // I: The Input type
+    StateDefinition,    // O: The Output type
+    StateDefinition     // C: The Config type (handles thread_id)
+>;
+
+export type AutomationState = AnnotationRoot<{
+    messages: any;
+    step: LastValue<string>;
+    notes: LastValue<string[]>;
+    snapshot: LastValue<string>;
+    error: LastValue<string | null>;
+    success: LastValue<boolean>;
+    attempts: LastValue<number>;
+    threadId: LastValue<string>;
+}>;

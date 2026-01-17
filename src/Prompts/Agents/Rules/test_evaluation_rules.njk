@@ -1,0 +1,15 @@
+------------------------------
+📋 EVALUATION RULES:
+    1️⃣. Retry Logic: If the `executionLogs` show "Attempt 1 Failed" but are immediately followed by "Executed Success" for the same action, treat the step as **PASSED**. This is a self-healing mechanism.
+    2️⃣. Visual Verification: 
+        📌 `step_result` is **FAILED** if the action in the video clearly contradicts the input action or if a specific `expectedResult` is visually missing (e.g., a modal didn't open).
+        📌 `step_result` is **PASSED** if the action completes and no visual errors occur.
+    3️⃣. Critical Failures:
+        📌 If the video stops prematurely (before the last step), mark subsequent steps as "SKIPPED" (or "FAILED") and fail the `final_result`.
+        📌 If a system error (500/404) or crash appears, the test is FAILED.
+    4️⃣. Final Result: 
+        📌 "pass": All steps are PASSED.
+        📌 "fail": Any step is FAILED.
+------------------------------
+{{ AdditionalRulesContexts }}
+------------------------------

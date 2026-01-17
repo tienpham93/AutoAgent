@@ -1,9 +1,8 @@
 // ... imports
 
 import { EvaluatorAgent } from "./Agents/EvaluatorAgent";
-import { GEMINI_EVALUATOR_KEY, GEMINI_EVALUATOR_MODEL, OUTPUT_DIR, PERSONA_DIR } from "./settings";
+import { GEMINI_EVALUATOR_KEY, GEMINI_EVALUATOR_MODEL, OUTPUT_DIR, PERSONA_DIR, RULES_DIR } from "./settings";
 import { LLMVendor } from "./types";
-import { FileHelper } from "./Utils/FileHelper";
 
 async function evaluation() {
     // INIT AGENT
@@ -11,7 +10,11 @@ async function evaluation() {
         vendor: LLMVendor.GEMINI,
         apiKey: GEMINI_EVALUATOR_KEY as any,
         model: GEMINI_EVALUATOR_MODEL, 
-        persona: FileHelper.readTextFile(`${PERSONA_DIR}/evaluator_persona.txt`),
+        personaTemplatePath: `${PERSONA_DIR}/evaluator_persona.njk`,
+        additionalContexts: [
+            `${RULES_DIR}/test_evaluation_rules.njk`,
+            `${RULES_DIR}/test_results_extraction_rules.njk`,
+        ]
     });
 
     // TO GET TEST RUNS RESULTS FROM OUTPUT DIR
