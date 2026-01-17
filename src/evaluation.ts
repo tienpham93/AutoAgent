@@ -12,8 +12,8 @@ async function evaluation() {
         model: GEMINI_EVALUATOR_MODEL, 
         personaTemplatePath: `${PERSONA_DIR}/evaluator_persona.njk`,
         additionalContexts: [
-            `${RULES_DIR}/test_evaluation_rules.njk`,
-            `${RULES_DIR}/test_results_extraction_rules.njk`,
+            `${RULES_DIR}/evaluate_rules.njk`,
+            `${RULES_DIR}/extract_test_eval_results.njk`,
         ]
     });
 

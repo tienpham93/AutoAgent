@@ -1,3 +1,4 @@
+import { RULES_DIR } from "../settings";
 import { AgentConfig, EvaluationResult, LLMVendor, TestRunData } from "../types";
 import { BaseAgent } from "./BaseAgent";
 import * as fs from 'fs';
@@ -85,25 +86,15 @@ export class EvaluatorAgent extends BaseAgent {
         if (!fs.existsSync(jsonPath)) throw new Error(`JSON Log not found: ${jsonPath}`);
         const testLogContext = fs.readFileSync(jsonPath, 'utf-8');
 
-        // Construct the prompt
-        const prompt = `
-            Analyze these video recordings of an automation test.
-            
-            ***CONTEXT***
-            There are ${videoPaths.length} videos provided. 
-            If there are more than one video, treat them as a continuous sequence (Main browser tab -> next browser tab).
-            
-            ***TEST LOG DATA***
-            ${testLogContext}
-            
-            ***TASK***
-            Follow the PERSONA rules provided in the system message. 
-            Return strictly Valid JSON without Markdown formatting.
-        `;
+        const fullPrompt = this.buildPrompt(
+            `${RULES_DIR}/evaluate_test_output_rules.njk`,
+            {
+                numberOfVideos: videoPaths.length,
+                testLogContext: testLogContext
+            }
+        );
 
-        // Delegate to BaseAgent
-        // This handles upload, processing, LLM invocation, and cleanup automatically
-        const responseText = await this.sendVideosToLLM(prompt, videoPaths, `eval-${Date.now()}`);
+        const responseText = await this.sendVideosToLLM(fullPrompt, videoPaths, `eval-${Date.now()}`);
 
         try {
             const cleanJson = responseText.replace(/```json|```/g, '').trim();

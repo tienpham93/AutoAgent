@@ -77,6 +77,11 @@ export class BaseAgent {
         });
     }
 
+    protected buildPrompt(templatePath: string, dynamicData: object): string {
+        const promptTemplate = FileHelper.retrieveNjkTemplate(templatePath);
+        return nunjucks.renderString(promptTemplate, dynamicData);
+    }
+
     private initAgentFlow(): AgentFlow {
         const initAgentWithSystemPrompts = async (state: AgentState): Promise<AgentUpdate> => {
             const systemPrompt = new SystemMessage(this.buildSystemPrompt());

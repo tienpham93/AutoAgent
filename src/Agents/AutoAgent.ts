@@ -4,7 +4,7 @@ import { StateGraph, START, END, Annotation, MessagesAnnotation } from "@langcha
 import { BaseAgent } from "./BaseAgent";
 import { AgentConfig, AgentState, AutomationState } from "../types";
 import { FileHelper } from "../Utils/FileHelper";
-import { CONTEXTS_DIR, WORKFLOWS_DIR } from "../settings";
+import { CONTEXTS_DIR, RULES_DIR, WORKFLOWS_DIR } from "../settings";
 import playwrightConfig from '../../playwright.config';
 import * as nunjucks from "nunjucks";
 
@@ -65,37 +65,18 @@ export class AutoAgent extends BaseAgent {
             const step = state.step;
             const contextNotes = state.notes.join(' | ');
 
-            // Construct the multi-section prompt for the LLM
-            let fullPrompt = `
-                ***KNOWLEDGE BASE***
-                PAGE CONTEXTS: ${pageKnowledgeBase?.contexts || 'N/A'}
-                PAGE WORKFLOWS: ${pageKnowledgeBase?.workflow || 'N/A'}
-                
-                ***CURRENT PAGE STATE***
-                URL: ${this.currentUrl}
-                SNAPSHOT (Accessibility Tree):
-                ${state.snapshot}
-                
-                ***TASK***
-                STEP TO EXECUTE: "${step}"
-                CRITICAL NOTES: ${contextNotes || 'None'}
-            `;
-
-            if (state.error) {
-                fullPrompt += `
-                \n------------------------------
-                ⚠️ PREVIOUS ATTEMPT FAILED ⚠️
-                ERROR ENCOUNTERED: "${state.error}"
-                
-                RECOVERY INSTRUCTION:
-                The code you generated previously threw the error above. 
-                1. Analyze the Error Message above.
-                2. If the error suggests a timeout, probably the elements doesn't present, so that must look for the notes in that step first.
-                3. Find instructions in page contexts and workflows to better address the step.
-                4. If the errors regarding elements/locators, hence Do NOT repeat the exact same code/selector.
-                5. Use the "CURRENT PAGE STATE" to find a better selector (e.g., if ID failed, try text or aria-label).
-                `;
-            }
+            let fullPrompt = this.buildPrompt(
+                `${RULES_DIR}/execute_test_step_rules.njk`,
+                {
+                    pageContexts: pageKnowledgeBase?.contexts,
+                    pageWorkflows: pageKnowledgeBase?.workflow,
+                    currentUrl: this.currentUrl,
+                    snapshot: state.snapshot,
+                    step: step,
+                    contextNotes: contextNotes,
+                    error: state.error
+                }
+            )
 
             const pwRawScript = await this.sendToLLM(fullPrompt, state.threadId);
             console.log(`[🤖🤖🤖] >> 🦾 Executing step: "${step}"`);
@@ -249,14 +230,14 @@ export class AutoAgent extends BaseAgent {
             {
                 pageTitle: "Agoda Official Site | Free Cancellation & Booking Deals | Over 2 Million Hotels",
                 pageUrl: "https://www.agoda.com/",
-                contextsPath: `${CONTEXTS_DIR}/homepage-context.njk`,
-                workflowPath: `${WORKFLOWS_DIR}/homepage-workflow.njk`
+                contextsPath: `${CONTEXTS_DIR}/homepage_context.njk`,
+                workflowPath: `${WORKFLOWS_DIR}/homepage_workflow.njk`
             },
             {
                 pageTitle: "Agoda | Hotels in Hong Kong | Best Price Guarantee!",
                 pageUrl: "https://www.agoda.com/search",
-                contextsPath: `${CONTEXTS_DIR}/homepage-context.njk`,
-                workflowPath: `${WORKFLOWS_DIR}/homepage-workflow.njk`
+                contextsPath: `${CONTEXTS_DIR}/searchpage_context.njk`,
+                workflowPath: `${WORKFLOWS_DIR}/searchpage_workflow.njk`
             },
         ];
 

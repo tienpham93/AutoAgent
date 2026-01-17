@@ -27,7 +27,7 @@ async function testExecuting(file: string) {
         apiKey: GEMINI_EXTRACTOR_KEY as any,
         model: GEMINI_EXTRACTOR_MODEL,
         personaTemplatePath: `${PERSONA_DIR}/extractor_persona.njk`,
-        additionalContexts: [`${RULES_DIR}/test_case_extraction_rules.njk`],
+        additionalContexts: [`${RULES_DIR}/extract_test_case_rules.njk`],
     });
 
     const autoBot = new AutoAgent({
