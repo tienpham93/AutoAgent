@@ -71,9 +71,9 @@ export class EvaluatorAgent extends BaseAgent {
 
         try {
             fs.writeFileSync(targetFilePath, JSON.stringify(evaluations, null, 2));
-            console.log(`[Evaluator] >> 💾 Result saved to ${path.basename(targetFilePath)}`);
+            console.log(`[🕵️🕵️🕵️] >> 💾 Result saved to ${path.basename(targetFilePath)}`);
         } catch (e) {
-            console.error(`[Evaluator] >> ❌ Save failed: ${e}`);
+            console.error(`[🕵️🕵️🕵️] >> ❌ Save failed: ${e}`);
         }
     }
 
@@ -81,7 +81,7 @@ export class EvaluatorAgent extends BaseAgent {
      * 👉 Analyzes the run by delegating video processing to BaseAgent
      */
     public async evaluateRun(videoPaths: string[], jsonPath: string): Promise<EvaluationResult> {
-        console.log(`[Evaluator] >> 🎬 Preparing analysis for ${videoPaths.length} video(s)...`);
+        console.log(`[🕵️🕵️🕵️] >> 🎬 Preparing analysis for ${videoPaths.length} video(s)...`);
         
         if (!fs.existsSync(jsonPath)) throw new Error(`JSON Log not found: ${jsonPath}`);
         const testLogContext = fs.readFileSync(jsonPath, 'utf-8');
@@ -100,7 +100,7 @@ export class EvaluatorAgent extends BaseAgent {
             const cleanJson = responseText.replace(/```json|```/g, '').trim();
             return JSON.parse(cleanJson) as EvaluationResult;
         } catch (error) {
-            console.error("[Evaluator] >> ❌ JSON Parsing Error on response:", responseText);
+            console.error("[🕵️🕵️🕵️] >> ❌ JSON Parsing Error on response:", responseText);
             throw error;
         }
     }

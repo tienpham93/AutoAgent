@@ -111,7 +111,7 @@ export class BaseAgent {
         const uploadedFiles: UploadedFileCtx[] = [];
 
         for (const filePath of filePaths) {
-            console.log(`[BaseAgent] >> 📤 Uploading: ${path.basename(filePath)}`);
+            console.log(`[🕵️🕵️🕵️] >> 📤 Uploading: ${path.basename(filePath)}`);
 
             // 1. Upload
             const uploadResponse = await this.fileManager.uploadFile(filePath, {
@@ -123,7 +123,7 @@ export class BaseAgent {
             let fileState = uploadResponse.file.state;
             let currentFile = uploadResponse.file;
 
-            process.stdout.write(`[BaseAgent] >> ⏳ Processing ${currentFile.displayName}`);
+            process.stdout.write(`[🕵️🕵️🕵️] >> ⏳ Processing ${currentFile.displayName}`);
             while (fileState === FileState.PROCESSING) {
                 await new Promise((resolve) => setTimeout(resolve, 2000));
                 process.stdout.write(".");
@@ -150,12 +150,12 @@ export class BaseAgent {
     protected async cleanupMediaFiles(files: UploadedFileCtx[]): Promise<void> {
         if (!this.fileManager) return;
 
-        console.log(`[BaseAgent] >> 🧹 Cleaning up ${files.length} cloud file(s)...`);
+        console.log(`[🕵️🕵️🕵️] >> 🧹 Cleaning up ${files.length} cloud file(s)...`);
         for (const file of files) {
             try {
                 await this.fileManager.deleteFile(file.name);
             } catch (error) {
-                console.warn(`[BaseAgent] >> ⚠️ Failed to delete ${file.name}:`, error);
+                console.warn(`[🕵️🕵️🕵️] >> ⚠️ Failed to delete ${file.name}:`, error);
             }
         }
     }
@@ -192,7 +192,7 @@ export class BaseAgent {
             return lastMessage?.content?.toString() || "{}";
 
         } catch (error) {
-            console.error(`[BaseAgent] Execution Error:`, error);
+            console.error(`[🕵️🕵️🕵️] Execution Error:`, error);
             return "{}";
         }
     }
@@ -213,7 +213,7 @@ export class BaseAgent {
 
             return lastMessage?.content?.toString() || "{}";
         } catch (error) {
-            console.error(`[BaseAgent] Execution Error:`, error);
+            console.error(`[🕵️🕵️🕵️] Execution Error:`, error);
             return "{}";
         }
     }

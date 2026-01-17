@@ -17,7 +17,7 @@ Verify that a user can successfully search for a list of hotel when entering a l
 ### 👣 Step Actions 👣
 1. Enter "Hong Kong" to "Enter a destination or property" input field
 2. Select the 1st **Suggestion** from the suggestion list
-3. Select **Today** is Checkin date
+3. Select default checkin date in the date picker
 4. Select Checkout date is next 4 days from the checkin date
 5. Select 2 Room, 4 Adults and 1 Children
 6. Click Search button
@@ -28,8 +28,6 @@ Verify that a user can successfully search for a list of hotel when entering a l
 7. At Search Page, Search bar displays correct search inputted details
 
 ### 📝 Notes 📝
-📌 **Today** is the current date that running this testcase NOT the default checkin date in the DayPicker-Day
-
 📌 **Suggestion** can refer this css[data-element-name="search-box-sub-suggestion"]
 
 ---
@@ -42,7 +40,7 @@ Verify that a user can successfully search for a list of hotel when entering a s
 ### 👣 Step Actions 👣
 1. Enter "Park Hyatt Saigon" to "Enter a destination or property" input field
 2. Select the 1st **Suggestion** from the suggestion list
-3. Select **Today** is Checkin date
+3. Select default checkin date in the date picker
 4. Select Checkout date date is next 4 days from the checkin date
 5. Select 2 Room, 4 Adults and 1 Children
 6. Click Search button
@@ -53,6 +51,4 @@ Verify that a user can successfully search for a list of hotel when entering a s
 7. At Search Page, Search bar displays correct search inputted details
 
 ### 📝 Notes 📝
-📌 **Today** is the current date that running this testcase NOT the default checkin date in the DayPicker-Day
-
 📌 **Suggestion** can refer this css[data-element-name="search-box-sub-suggestion"]
