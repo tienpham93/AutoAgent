@@ -26,6 +26,8 @@ export class AutoAgent extends BaseAgent {
     private browser: Browser | null = null;
     private context: BrowserContext | null = null;
     public page: Page | any;
+    private pageTitle: string = '';
+    private currentUrl: string = '';
 
     // Reporting & Debugging
     public actionLogs: string[] = [];
@@ -46,24 +48,37 @@ export class AutoAgent extends BaseAgent {
     private initAutomationFlow() {
         // NODE 1: Generator - Writes the Playwright script
         const generatorNode = async (state: AutoState) => {
-            const url = this.page.url();
-            const title = await this.page.title();
-            const knowledge = this.detectPageContext(title, url);
+            const pageElements = await this.waitForUIStability();
+
+            let currentPageTitle = await JSON.parse(pageElements).name;
+            let currentUrl = await this.page.url();
+            let pageKnowledgeBase: any;
+
+            // Check if pageTitle or currentUrl have changed
+            if (this.pageTitle !== currentPageTitle && this.currentUrl !== currentUrl) {
+                this.pageTitle = await JSON.parse(pageElements).name;
+                this.currentUrl = await this.page.url();
+                pageKnowledgeBase = this.detectPageContext(this.pageTitle, this.currentUrl);
+            }
+
+            // Extract step and notes from state
+            const step = state.step;
+            const contextNotes = state.notes.join(' | ');
 
             // Construct the multi-section prompt for the LLM
             let fullPrompt = `
                 ***KNOWLEDGE BASE***
-                PAGE CONTEXTS: ${knowledge?.contexts || 'N/A'}
-                PAGE WORKFLOWS: ${knowledge?.workflow || 'N/A'}
+                PAGE CONTEXTS: ${pageKnowledgeBase?.contexts || 'N/A'}
+                PAGE WORKFLOWS: ${pageKnowledgeBase?.workflow || 'N/A'}
                 
                 ***CURRENT PAGE STATE***
-                URL: ${url}
+                URL: ${this.currentUrl}
                 SNAPSHOT (Accessibility Tree):
                 ${state.snapshot}
                 
                 ***TASK***
-                STEP TO EXECUTE: "${state.step}"
-                CRITICAL NOTES: ${state.notes.join(' | ') || 'None'}
+                STEP TO EXECUTE: "${step}"
+                CRITICAL NOTES: ${contextNotes || 'None'}
             `;
 
             if (state.error) {
@@ -82,12 +97,14 @@ export class AutoAgent extends BaseAgent {
                 `;
             }
 
-            // Call the BaseAgent's brain
-            const responseText = await this.sendToLLM(fullPrompt, state.threadId);
+            const pwRawScript = await this.sendToLLM(fullPrompt, state.threadId);
+            console.log(`[🤖🤖🤖] >> 🦾 Executing step: "${step}"`);
+            console.log(`[🤖🤖🤖] >> 📌 Step Note: "${contextNotes}"`);
+            console.log(`[🤖🤖🤖] >> 🎭 Step Script: "${pwRawScript}"\n`);
 
             return {
                 // We store the response in history so the LLM remembers its previous code in the next retry
-                messages: [new HumanMessage(responseText)],
+                messages: [new HumanMessage(pwRawScript)],
                 attempts: state.attempts + 1
             };
         };
@@ -263,7 +280,7 @@ export class AutoAgent extends BaseAgent {
     }
 
 
-    private extractCode(text: string): string {
+    public extractCode(text: string): string {
         return text.replace(/```javascript/gi, "").replace(/```js/gi, "").replace(/```/g, "").trim();
     }
 }

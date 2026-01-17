@@ -1,15 +1,15 @@
 import * as readline from 'readline';
 import { AutoAgent } from '../Agents/AutoAgent';
-import { FileHelper } from '../Utils/FileHelper';
-import { GEMINI_AUTO_AGENT_KEY, GEMINI_AUTO_AGENT_MODEL, PERSONA_DIR } from '../settings';
+import { GEMINI_AUTO_AGENT_KEY, GEMINI_AUTO_AGENT_MODEL, PERSONA_DIR, RULES_DIR } from '../settings';
 import { LLMVendor } from '../types';
 
 async function main() {
     const autoBot = new AutoAgent({
         vendor: LLMVendor.GEMINI,
         apiKey: GEMINI_AUTO_AGENT_KEY as any,
-        model: GEMINI_AUTO_AGENT_MODEL || "gemini-2.5-flash",
-        persona: FileHelper.readTextFile(`${PERSONA_DIR}/autobot_persona.txt`)
+        model: GEMINI_AUTO_AGENT_MODEL,
+        personaTemplatePath: `${PERSONA_DIR}/autobot_persona.njk`,
+        additionalContexts: [`${RULES_DIR}/codegen_rules.njk`],
     });
 
     await autoBot.startBrowser();
