@@ -1,3 +1,4 @@
+import { GoogleAIFileManager } from "@google/generative-ai/server";
 import { RULES_DIR } from "../settings";
 import { AgentConfig, EvaluationResult, LLMVendor, TestRunData } from "../types";
 import { BaseAgent } from "./BaseAgent";
@@ -10,6 +11,7 @@ export class EvaluatorAgent extends BaseAgent {
             ...config, 
             vendor: LLMVendor.GEMINI // Only Gemini supported video anlysis seamlessly
         });
+        this.fileManager = new GoogleAIFileManager(this.apiKey);
     }
 
     /**

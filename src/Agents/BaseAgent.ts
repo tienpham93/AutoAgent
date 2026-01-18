@@ -9,7 +9,7 @@ import {
     START,
     END,
 } from "@langchain/langgraph";
-import { GoogleAIFileManager, FileState } from "@google/generative-ai/server"; // Import Google File Helpers
+import { GoogleAIFileManager, FileState } from "@google/generative-ai/server";
 import * as path from 'path';
 import { AgentConfig, AgentFlow, AgentState, AgentUpdate, LLMVendor, UploadedFileCtx } from "../types";
 import { FileHelper } from "../Utils/FileHelper";
@@ -107,28 +107,31 @@ export class BaseAgent {
     }
 
     protected async uploadMediaFiles(filePaths: string[]): Promise<UploadedFileCtx[]> {
-        this.fileManager = new GoogleAIFileManager(this.apiKey);
         const uploadedFiles: UploadedFileCtx[] = [];
 
         for (const filePath of filePaths) {
             console.log(`[🕵️🕵️🕵️] >> 📤 Uploading: ${path.basename(filePath)}`);
 
             // 1. Upload
-            const uploadResponse = await this.fileManager.uploadFile(filePath, {
+            const uploadResponse = await this.fileManager?.uploadFile(filePath, {
                 mimeType: "video/webm", // Should be dynamic based on extension in production
                 displayName: path.basename(filePath),
             });
 
             // 2. Wait for Processing
-            let fileState = uploadResponse.file.state;
-            let currentFile = uploadResponse.file;
+            let fileState = uploadResponse?.file.state;
+            let currentFile = uploadResponse?.file;
+            let currentDisplayName = currentFile?.displayName || "unknown";
+            let currentName = currentFile?.name || "unknown";
+            let currentUri = currentFile?.uri || "";
+            let currentMimeType = currentFile?.mimeType || "application/octet-stream";
 
-            process.stdout.write(`[🕵️🕵️🕵️] >> ⏳ Processing ${currentFile.displayName}`);
+            process.stdout.write(`[🕵️🕵️🕵️] >> ⏳ Processing ${currentDisplayName}`);
             while (fileState === FileState.PROCESSING) {
                 await new Promise((resolve) => setTimeout(resolve, 2000));
                 process.stdout.write(".");
-                const freshState = await this.fileManager.getFile(currentFile.name);
-                fileState = freshState.state;
+                const freshState = await this.fileManager?.getFile(currentName || "");
+                fileState = freshState?.state;
                 currentFile = freshState;
             }
             console.log(" Done.");
@@ -138,9 +141,9 @@ export class BaseAgent {
             }
 
             uploadedFiles.push({
-                name: currentFile.name,
-                uri: currentFile.uri,
-                mimeType: currentFile.mimeType,
+                name: currentName,
+                uri: currentUri,
+                mimeType: currentMimeType,
             });
         }
 
@@ -148,12 +151,10 @@ export class BaseAgent {
     }
 
     protected async cleanupMediaFiles(files: UploadedFileCtx[]): Promise<void> {
-        if (!this.fileManager) return;
-
         console.log(`[🕵️🕵️🕵️] >> 🧹 Cleaning up ${files.length} cloud file(s)...`);
         for (const file of files) {
             try {
-                await this.fileManager.deleteFile(file.name);
+                await this.fileManager?.deleteFile(file.name);
             } catch (error) {
                 console.warn(`[🕵️🕵️🕵️] >> ⚠️ Failed to delete ${file.name}:`, error);
             }
@@ -194,6 +195,10 @@ export class BaseAgent {
         } catch (error) {
             console.error(`[🕵️🕵️🕵️] Execution Error:`, error);
             return "{}";
+        } finally {
+            if (uploadedFiles.length > 0) {
+                await this.cleanupMediaFiles(uploadedFiles);
+            }
         }
     }
 
