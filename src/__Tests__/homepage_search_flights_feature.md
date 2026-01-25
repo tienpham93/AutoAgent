@@ -26,7 +26,7 @@ Verify that a user can successfully search for a list of flights when entering a
 
 ### ✅ Expected Result ✅
 7.1 User is navigated to the Search Flight page
-7.2 The Flight Search bar displays correct searched details such as flying from Ho Chi Minh to Hong Kong, departure date is today, number of passenger is 3 and Business class
+7.2 The Flight Search bar displays correct searched details such as flying from Ho Chi Minh to Hong Kong, departure date is today, number of passenger is 1 and Business class
 
 ### 📝 Notes 📝
 N/A

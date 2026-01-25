@@ -15,7 +15,7 @@ import {
 import { CommonHelper } from './Utils/CommonHelper';
 import { Logzer } from './Utils/Logger';
 
-const MAX_CONCURRENT_WORKERS = 1; 
+const MAX_CONCURRENT_WORKERS = 2; 
 
 // Single thread execution
 async function testExecuting(file: string) {

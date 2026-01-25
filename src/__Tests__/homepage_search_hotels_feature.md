@@ -23,7 +23,7 @@ Verify that a user can successfully search for a list of hotel when entering a l
 6. Click Search button
 
 ### ✅ Expected Result ✅
-6.1 Search Page is opened on another tab
+6.1 Search Page is opened
 6.2 At Search Page, Search bar displays correct search inputted details
 
 ### 📝 Notes 📝
@@ -45,7 +45,7 @@ Verify that a user can successfully search for a list of hotel when entering a s
 6. Click Search button
 
 ### ✅ Expected Result ✅
-6.1 Search Page is opened on another tab
+6.1 Search Page is opened
 6.2 At Search Page, Search bar displays correct search inputted details
 
 ### 📝 Notes 📝
