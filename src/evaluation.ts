@@ -1,8 +1,11 @@
 // ... imports
 
+import { AIMessage } from "@langchain/core/messages";
 import { EvaluatorAgent } from "./Agents/EvaluatorAgent";
 import { GEMINI_EVALUATOR_KEY, GEMINI_EVALUATOR_MODEL, OUTPUT_DIR, PERSONA_DIR, RULES_DIR } from "./settings";
 import { LLMVendor } from "./types";
+import { CommonHelper } from "./Utils/CommonHelper";
+import { Logzer } from "./Utils/Logger";
 
 async function evaluation() {
     // INIT AGENT
@@ -23,12 +26,21 @@ async function evaluation() {
 
     for (const run of testRuns) {
         try {
-            const evaluationResponse = await evaluator.evaluateRun(run.videoPaths, run.jsonPath);
+            console.log(`[🕵️🕵️🕵️] >> 🎯 Evaluating test run: ${run.folderName}`);
+            const thread_id = `execution_${CommonHelper.generateUUID()}`;
+
+            const response = await evaluator.execute(
+                {
+                    evaluator_videoPaths: run.videoPaths,
+                    evaluator_jsonPath: run.jsonPath,
+                },
+                thread_id
+            );
 
             const finalRecord = {
                 timestamp: new Date().toISOString(),
                 test_run_id: run.folderName,
-                ...evaluationResponse
+                ...response.evaluator_evaluationResult
             };
 
             evaluator.appendEvaluationResult(finalRecord, 'evaluations.json');

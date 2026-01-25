@@ -21,11 +21,10 @@ Verify that a user can successfully search for a list of hotel when entering a l
 4. Select Checkout date is next 4 days from the checkin date
 5. Select 2 Room, 4 Adults and 1 Children
 6. Click Search button
-7. If step 6 successed, there will a browser tab to be opened, hence Switch to that tab
 
 ### ✅ Expected Result ✅
-6. Search Page is opened on another tab
-7. At Search Page, Search bar displays correct search inputted details
+6.1 Search Page is opened on another tab
+6.2 At Search Page, Search bar displays correct search inputted details
 
 ### 📝 Notes 📝
 📌 **Suggestion** can refer this css[data-element-name="search-box-sub-suggestion"]
@@ -44,11 +43,10 @@ Verify that a user can successfully search for a list of hotel when entering a s
 4. Select Checkout date date is next 4 days from the checkin date
 5. Select 2 Room, 4 Adults and 1 Children
 6. Click Search button
-7. If step 6 successed, there will a browser tab to be opened, hence Switch to that tab
 
 ### ✅ Expected Result ✅
-6. Search Page is opened on another tab
-7. At Search Page, Search bar displays correct search inputted details
+6.1 Search Page is opened on another tab
+6.2 At Search Page, Search bar displays correct search inputted details
 
 ### 📝 Notes 📝
 📌 **Suggestion** can refer this css[data-element-name="search-box-sub-suggestion"]

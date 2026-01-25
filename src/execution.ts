@@ -13,13 +13,14 @@ import {
     RULES_DIR
 } from './settings';
 import { CommonHelper } from './Utils/CommonHelper';
+import { Logzer } from './Utils/Logger';
 
-const MAX_CONCURRENT_WORKERS = 2; 
+const MAX_CONCURRENT_WORKERS = 1; 
 
 // Single thread execution
 async function testExecuting(file: string) {
     const testName = file.replace('.md', '');
-    console.log(`[🛠️🛠️🛠️] >> ⚡ Starting processing for: ${file}`);
+    console.log(`[🧵🧵🧵] >> ⚡ Starting processing for: ${file}`);
 
     // INIT AGENTS
     const extractor = new ExtractorAgent({
@@ -44,7 +45,15 @@ async function testExecuting(file: string) {
         
         let listTestCase: [TestCase];
         try {
-            listTestCase = await extractor.parse(rawMarkdown) as [TestCase];
+            const thread_id = `extraction_${CommonHelper.generateUUID()}`;
+
+            const response = await extractor.execute(
+                {
+                    extractor_rawTestCase: rawMarkdown
+                }, 
+                thread_id
+            )
+            listTestCase = response.extractor_extractedTestcases as [TestCase];
             console.log(`[🚁🚁🚁] >> ✅ Loaded successfully:\n${JSON.stringify(listTestCase, null, 2)}`);
             
             // DELAY to Cool down after the heavy "Parse" operation
@@ -72,9 +81,15 @@ async function testExecuting(file: string) {
 
                 for (let step of testCase!.steps) {
                     // DELAY to ensures max 30 RPM per worker (Total 60 RPM for 2 workers)
-                    await CommonHelper.sleep(2000); 
+                    const thread_id = `execution_${CommonHelper.generateUUID()}`;
 
-                    await autoBot.executeStep(step.action, step.notes);
+                    await autoBot.execute(
+                        {
+                            step: step.action,
+                            notes: step.notes
+                        }, 
+                        thread_id
+                    );
                 }
             } catch (err) {
                 console.error(`[${file}] >> Error in case "${testCase!.title}"`, err);
@@ -84,24 +99,31 @@ async function testExecuting(file: string) {
                 autoBot.actionLogs = [];
             }
         }
-        console.log(`[🛠️🛠️🛠️] >> ✅ Worker Finished file: ${file}`);
+        console.log(`[🧵🧵🧵] >> ✅ Worker Finished file: ${file}`);
     } catch (err) {
-        console.error(`[🛠️🛠️🛠️] >> ❌ Worker Critical error processing file ${file}:`, err);
+        console.error(`[🧵🧵🧵] >> ❌ Worker Critical error processing file ${file}:`, err);
     }
 }
 
 async function executions() {
-    console.log(`[🛠️🛠️🛠️] >> ⚡ Starting with ${MAX_CONCURRENT_WORKERS} workers...`);
+    console.log(`[🧵🧵🧵] >> Starting with ${MAX_CONCURRENT_WORKERS} workers...`);
 
     const files = FileHelper.readDirectory(TESTS_DIR).filter(f => f.endsWith('.md'));
-
     const limit = pLimit(MAX_CONCURRENT_WORKERS);
 
-    const tasks = files.map(file => {
-        return limit(() => testExecuting(file));
-    });
+    try {
+        const tasks = files.map(file => {
+            return limit(() => testExecuting(file));
+        });
 
-    await Promise.all(tasks);
+        await Promise.all(tasks);
+        console.log("🏁 All workers finished execution.");
+
+    } catch (err) {
+        console.log(`[🕵️🕵️🕵️] >> ❌ Critical Error: ${err}`);
+    } finally {
+        Logzer.logStream.end();
+    }
 }
 
 executions()

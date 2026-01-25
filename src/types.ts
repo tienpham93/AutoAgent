@@ -1,5 +1,4 @@
-import { MessagesAnnotation, CompiledStateGraph, StateDefinition, AnnotationRoot, LastValue } from "@langchain/langgraph";
-
+import { Annotation, AnnotationRoot, LastValue, MessagesAnnotation } from "@langchain/langgraph";
 
 export type GeminiClient = {
     apiKey: string;
@@ -90,25 +89,26 @@ export interface UploadedFileCtx {
     mimeType: string;
 }
 
-export type AgentState = typeof MessagesAnnotation.State;
-export type AgentUpdate = typeof MessagesAnnotation.Update;
+export const AgentStateAnnotationSchema = Annotation.Root({
+    // Common annotations
+    ...MessagesAnnotation.spec,
+    step: Annotation<string>(),
+    notes: Annotation<string[]>(),
+    error: Annotation<string | null>(),
+    success: Annotation<boolean>(),
+    attempts: Annotation<number>(),
+    threadId: Annotation<string>(),
 
-export type AgentFlow = CompiledStateGraph<
-    AgentState,         // S: The full State
-    AgentUpdate,        // U: The Update type (what nodes return)
-    string,             // N: The Node names (union of strings)
-    StateDefinition,    // I: The Input type
-    StateDefinition,    // O: The Output type
-    StateDefinition     // C: The Config type (handles thread_id)
->;
+    // AutoAgent specific annotations
+    extractor_rawTestCase: Annotation<string>(),
+    extractor_extractedTestcases: Annotation<TestCase[]>(),
 
-export type AutomationState = AnnotationRoot<{
-    messages: any;
-    step: LastValue<string>;
-    notes: LastValue<string[]>;
-    snapshot: LastValue<string>;
-    error: LastValue<string | null>;
-    success: LastValue<boolean>;
-    attempts: LastValue<number>;
-    threadId: LastValue<string>;
-}>;
+    autoAgent_domTree: Annotation<string>(),
+    autoAgent_screenshot: Annotation<string>(),
+
+    evaluator_videoPaths: Annotation<string[]>(),
+    evaluator_jsonPath: Annotation<string>(),
+    evaluator_evaluationResult: Annotation<EvaluationResult>(),
+});
+
+export type AgentState = typeof AgentStateAnnotationSchema.State;

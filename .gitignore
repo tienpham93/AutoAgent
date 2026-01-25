@@ -11,3 +11,4 @@ src/Debug/Elements/
 .env
 evaluations.json
 allure-results/
+src/execution.log
