@@ -1,5 +1,5 @@
-import { AutoAgent } from './Agents/AutoAgent';
-import { ExtractorAgent } from './Agents/ExtractorAgent';
+import { AutoBot } from './Agents/AutoBot';
+import { Extractor } from './Agents/Extractor';
 import { FileHelper } from './Utils/FileHelper';
 import { LLMVendor, TestCase } from './types';
 import pLimit from 'p-limit';
@@ -23,7 +23,7 @@ async function testExecuting(file: string) {
     console.log(`[🧵🧵🧵] >> ⚡ Starting processing for: ${file}`);
 
     // INIT AGENTS
-    const extractor = new ExtractorAgent({
+    const extractor = new Extractor({
         vendor: LLMVendor.GEMINI,
         apiKey: GEMINI_EXTRACTOR_KEY as any,
         model: GEMINI_EXTRACTOR_MODEL,
@@ -31,7 +31,7 @@ async function testExecuting(file: string) {
         additionalContexts: [`${RULES_DIR}/extract_test_case_rules.njk`],
     });
 
-    const autoBot = new AutoAgent({
+    const autoBot = new AutoBot({
         vendor: LLMVendor.GEMINI,
         apiKey: GEMINI_AUTO_AGENT_KEY as any,
         model: GEMINI_AUTO_AGENT_MODEL,

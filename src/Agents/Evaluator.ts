@@ -8,7 +8,7 @@ import { Logzer } from "../Utils/Logger";
 import { GraphBuilder } from "../Services/GraphService/GraphBuilder";
 import { AGENT_NODES } from "../constants";
 
-export class EvaluatorAgent extends BaseAgent {
+export class Evaluator extends BaseAgent {
     constructor(config: AgentConfig) {
         super(config);
         this.fileManager = new GoogleAIFileManager(this.apiKey);

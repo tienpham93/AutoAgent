@@ -1,7 +1,7 @@
 // ... imports
 
 import { AIMessage } from "@langchain/core/messages";
-import { EvaluatorAgent } from "./Agents/EvaluatorAgent";
+import { Evaluator } from "./Agents/Evaluator";
 import { GEMINI_EVALUATOR_KEY, GEMINI_EVALUATOR_MODEL, OUTPUT_DIR, PERSONA_DIR, RULES_DIR } from "./settings";
 import { LLMVendor } from "./types";
 import { CommonHelper } from "./Utils/CommonHelper";
@@ -9,7 +9,7 @@ import { Logzer } from "./Utils/Logger";
 
 async function evaluation() {
     // INIT AGENT
-    const evaluator = new EvaluatorAgent({
+    const evaluator = new Evaluator({
         vendor: LLMVendor.GEMINI,
         apiKey: GEMINI_EVALUATOR_KEY as any,
         model: GEMINI_EVALUATOR_MODEL, 

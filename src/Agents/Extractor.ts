@@ -3,7 +3,7 @@ import { GraphBuilder } from "../Services/GraphService/GraphBuilder";
 import { AgentConfig } from "../types";
 import { BaseAgent } from "./BaseAgent";
 
-export class ExtractorAgent extends BaseAgent {
+export class Extractor extends BaseAgent {
 
     constructor(config: AgentConfig) {
         super(config);

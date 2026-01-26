@@ -9,7 +9,7 @@ import { CommonHelper } from "../Utils/CommonHelper";
 import { GraphBuilder } from "../Services/GraphService/GraphBuilder";
 import { AGENT_NODES } from "../constants";
 
-export class AutoAgent extends BaseAgent {
+export class AutoBot extends BaseAgent {
     // Playwright Properties
     private browser: Browser | null = null;
     private context: BrowserContext | null = null;
@@ -90,9 +90,12 @@ export class AutoAgent extends BaseAgent {
             const lastMessage = state.messages[state.messages.length - 1]
             const pwScript = this.extractCode(lastMessage.content.toString());
 
+            const step = state.step;
+            const notes = state.notes?.join(' | ') || 'N/A';
+
             try {
-                console.log(`[🤖🤖🤖] >> 🦾 Executing step: "${state.step}"`);
-                console.log(`[🤖🤖🤖] >> 📌 Step Note: "${state.notes.join(' | ')}"`);
+                console.log(`[🤖🤖🤖] >> 🦾 Executing step: "${step}"`);
+                console.log(`[🤖🤖🤖] >> 📌 Step Note: "${notes}"`);
                 console.log(`[🤖🤖🤖] >> 🎭 Step Script: "${pwScript}"\n`);
 
                 const page = await this.page;
@@ -107,7 +110,7 @@ export class AutoAgent extends BaseAgent {
                     error: null,
                     messages: [...state.messages, lastMessage]
                 };
-          
+
             } catch (error) {
                 console.error(`[🤖🤖🤖] >> 💥 Execution Error: ${error}`);
                 return {
@@ -119,42 +122,87 @@ export class AutoAgent extends BaseAgent {
             }
         }
 
-        /**
-         * ✏️ Draw Automation Flow
-        */
-        // REGISTER
-        builder.addNode(AGENT_NODES.CODE_GENERATOR, generatorNode);
-        builder.addNode(AGENT_NODES.CODE_EXECUTOR, executorNode);
+        const chatNode = async (state: AgentState) => {
+            const pageSnapshot = await this.waitForUIStability(10000, state);
+            const pageElements = pageSnapshot?.elementTree;
 
-        // WORKFLOW: SETUP_PERSONA -> CODE_GENERATOR -> CODE_EXECUTOR
-        builder.addEdge(AGENT_NODES.SETUP_PERSONA, AGENT_NODES.CODE_GENERATOR);
-        builder.addEdge(AGENT_NODES.CODE_GENERATOR, AGENT_NODES.CODE_EXECUTOR);
-
-        // LOGICS: CODE_EXECUTOR -> (Success ? END : Retry CODE_GENERATOR)
-        builder.addConditionalEdge(
-            AGENT_NODES.CODE_EXECUTOR, 
-            (state: AgentState) => {
-                console.log(`[🤖🤖🤖] >> 🔄 Execution attempt: ${state.attempts}`);
-                console.log(`[🤖🤖🤖] >> ❔ Execution success: ${state.success}`);
-
-                if (state.success) {
-                    return AGENT_NODES.END;
+            let fullPrompt = this.buildPrompt(
+                `${RULES_DIR}/dry_run_rules.njk`,
+                {
+                    userInput: state.step,
+                    elementsTree: pageElements,
                 }
+            )
 
-                // Retry up to 3 attempts
-                if (state.attempts >= 3) {
-                    return AGENT_NODES.END;
+            const userMessage = await this.buildMessageContent(
+                [
+                    {
+                        type: "text",
+                        text: fullPrompt
+                    }
+                ]
+            )
+
+            // Combine History + New Input temporarily for this call
+            const messagesForModel = [...state.messages, userMessage];
+            const response = await this.sendToLLM({ ...state, messages: messagesForModel });
+            return {
+                messages: [...state.messages, response],
+            };
+        }
+
+        const automationFlow = () => {
+            // REGISTER
+            builder.addNode(AGENT_NODES.CODE_GENERATOR, generatorNode);
+            builder.addNode(AGENT_NODES.CODE_EXECUTOR, executorNode);
+
+            // WORKFLOW: SETUP_PERSONA -> CODE_GENERATOR -> CODE_EXECUTOR
+            builder.addEdge(AGENT_NODES.SETUP_PERSONA, AGENT_NODES.CODE_GENERATOR);
+            builder.addEdge(AGENT_NODES.CODE_GENERATOR, AGENT_NODES.CODE_EXECUTOR);
+
+            // LOGICS: CODE_EXECUTOR -> (Success ? END : Retry CODE_GENERATOR)
+            builder.addConditionalEdge(
+                AGENT_NODES.CODE_EXECUTOR,
+                (state: AgentState) => {
+                    console.log(`[🤖🤖🤖] >> 🔄 Execution attempt: ${state.attempts}`);
+                    console.log(`[🤖🤖🤖] >> ❔ Execution success: ${state.success}`);
+
+                    if (state.success) {
+                        return AGENT_NODES.END;
+                    }
+
+                    // Retry up to 3 attempts
+                    if (state.attempts >= 3) {
+                        return AGENT_NODES.END;
+                    }
+                    return AGENT_NODES.CODE_GENERATOR; // Back to generator
+                },
+                {
+                    [AGENT_NODES.CODE_GENERATOR]: AGENT_NODES.CODE_GENERATOR,
+                    [AGENT_NODES.CODE_EXECUTOR]: AGENT_NODES.CODE_EXECUTOR,
+                    [AGENT_NODES.END]: AGENT_NODES.END
                 }
-                return AGENT_NODES.CODE_GENERATOR; // Back to generator
-            },
-            {
-                [AGENT_NODES.CODE_GENERATOR]: AGENT_NODES.CODE_GENERATOR,
-                [AGENT_NODES.CODE_EXECUTOR]: AGENT_NODES.CODE_EXECUTOR,
-                [AGENT_NODES.END]: AGENT_NODES.END
-            }
-        );
+            );
+        };
+
+        const dryRunFlow = () => {
+            // REGISTER
+            builder.addNode(AGENT_NODES.CHAT, chatNode);
+            builder.addNode(AGENT_NODES.CODE_EXECUTOR, executorNode);
+
+            // WORKFLOW: SETUP_PERSONA -> CHAT -> CODE_EXECUTOR
+            builder.addEdge(AGENT_NODES.SETUP_PERSONA, AGENT_NODES.CHAT);
+            builder.addEdge(AGENT_NODES.CHAT, AGENT_NODES.CODE_EXECUTOR);
+        }
+
+        // Choose flow based on DEBUG_MODE
+        if (process.env.DEBUG_MODE === 'true') {
+            dryRunFlow();
+        } else {
+            automationFlow();
+        }
     }
-    
+
     public async extractLog(testName: string, data: any): Promise<void> {
         try {
             FileHelper.writeFile(this.testOutputDir, `${testName}.json`, data);

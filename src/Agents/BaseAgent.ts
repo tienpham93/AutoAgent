@@ -62,7 +62,7 @@ export abstract class BaseAgent {
         });
     }
 
-    protected async buildMessageContent(data: any[]): Promise<any> {
+    public async buildMessageContent(data: any[]): Promise<any> {
         return new HumanMessage({
             content: data
         })
@@ -85,7 +85,7 @@ export abstract class BaseAgent {
         });
     }
 
-    protected buildPrompt(templatePath: string, dynamicData: object): string {
+    public buildPrompt(templatePath: string, dynamicData: object): string {
         const promptTemplate = FileHelper.retrieveNjkTemplate(templatePath);
         return nunjucks.renderString(promptTemplate, dynamicData);
     }
@@ -125,7 +125,7 @@ export abstract class BaseAgent {
      */
     protected abstract extendGraph(builder: GraphBuilder): void;
 
-    protected async sendToLLM(state: AgentState, max_retries = 5): Promise<AIMessage | any> {
+    public async sendToLLM(state: AgentState, max_retries = 5): Promise<AIMessage | any> {
         while (max_retries > 0) {
             try {
                 const response = await this.model.invoke(state.messages);

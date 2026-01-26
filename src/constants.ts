@@ -11,6 +11,7 @@ export enum AGENT_NODES {
     // AutoAgent Nodes
     CODE_GENERATOR = "code_generator",
     CODE_EXECUTOR = "code_executor",
+    CHAT = "chat",
 
     // Evaluator Nodes
     EVALUATION = "evaluation",

@@ -1,10 +1,13 @@
 import * as readline from 'readline';
-import { AutoAgent } from '../Agents/AutoAgent';
+import { AutoBot } from '../Agents/AutoBot';
 import { GEMINI_AUTO_AGENT_KEY, GEMINI_AUTO_AGENT_MODEL, PERSONA_DIR, RULES_DIR } from '../settings';
 import { LLMVendor } from '../types';
+import { CommonHelper } from '../Utils/CommonHelper';
+
+process.env.DEBUG_MODE = "true";
 
 async function main() {
-    const autoBot = new AutoAgent({
+    const autoBot = new AutoBot({
         vendor: LLMVendor.GEMINI,
         apiKey: GEMINI_AUTO_AGENT_KEY as any,
         model: GEMINI_AUTO_AGENT_MODEL,
@@ -16,7 +19,7 @@ async function main() {
 
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-    console.log(`\n--- 🤖 Auto Agent Started 🤖 ---`);
+    console.log(`\n--- 🤖 Start Debugging 🤖 ---`);
 
     const processInput = () => {
         rl.question('\x1b[36mYou: \x1b[0m', async (input) => {
@@ -32,37 +35,19 @@ async function main() {
 
             } else {
                 try {
-                    process.stdout.write('Reading page structure...');
-                    
-                    // Get Current elements tree
-                    const pageElements = await autoBot.getElementsTree();                
-                    const fullPrompt = `
-                        CURRENT PAGE STATE (JSON):
-                        ${pageElements}
-    
-                        USER REQUEST: 
-                        "${input}"
-                    `;
-    
-                    const pwRawScript = await autoBot.sendToLLM(fullPrompt);
-                    const pwScript = await autoBot.extractCode(pwRawScript);
-    
-                    console.log(`[🤖🤖🤖] >> 🎭 Step Script: "${pwScript}"\n`);
-    
-                    const page = await autoBot.page;
-                    // Execute Code through terminal
-                    await eval(`(async () => { 
-                        try {
-                            ${pwScript}
-                        } catch (e) { 
-                            console.error("Playwright Error:", e.message); 
-                        }
-                    })()`);
-                    console.log("\x1b[32mDone.\x1b[0m\n");
+                    process.stdout.write('\n ⏭️ Processing...\n');
+                    const thread_id = `dryrun_${CommonHelper.generateUUID()}`;
+
+                    await autoBot.execute(
+                        {
+                            step: input,
+                        }, 
+                        thread_id
+                    );
+                    console.log(' Done.');
                 } catch (error) {
                     console.error("\nAI Error:", error);
                 }
-    
                 processInput();
             }
         });
