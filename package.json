@@ -26,8 +26,10 @@
     "debug": "ts-node src/Debug/Debugger.ts",
     "test:exec": "ts-node src/execution.ts",
     "test:eval": "ts-node src/evaluation.ts",
-    "test:allure": "npx ts-node src/Report/generate_allure.ts && allure serve allure-results",
-    "test:cleanup": "echo 'Cleanup output folder' && rm -rf output"
+    "test:inspect": "ts-node src/inspection.ts",
+    "test:allure": "npx ts-node src/Report/generate_allure.ts && allure generate allure-results --clean -o allure-report && allure serve allure-results",
+    "test:cleanup": "echo 'Cleanup output folder' && rm -rf output",
+    "test:e2e": "yarn test:exec && yarn test:eval && yarn test:inspect && yarn test:allure"
   },
   "dependencies": {
     "allure-commandline": "^2.36.0",

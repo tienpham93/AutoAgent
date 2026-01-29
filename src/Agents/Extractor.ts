@@ -1,12 +1,14 @@
 import { AGENT_NODES } from "../constants";
 import { GraphBuilder } from "../Services/GraphService/GraphBuilder";
 import { AgentConfig } from "../types";
+import { CommonHelper } from "../Utils/CommonHelper";
 import { BaseAgent } from "./BaseAgent";
 
 export class Extractor extends BaseAgent {
 
     constructor(config: AgentConfig) {
         super(config);
+        this.agentId = `Extractor_${CommonHelper.generateUUID()}`;
     }
 
     protected extendGraph(builder: GraphBuilder): void {
@@ -36,7 +38,7 @@ export class Extractor extends BaseAgent {
             try {
                 parsedResult = JSON.parse(cleanJson);
             } catch (e) {
-                console.error("JSON Parse Error:", cleanJson);
+                console.error(`[${this.agentId}][🚁] >> JSON Parse Error:`, cleanJson);
                 throw e;
             }
 
@@ -52,7 +54,7 @@ export class Extractor extends BaseAgent {
         // REGISTER
         builder.addNode(AGENT_NODES.EXTRACTION, ExtractionNode);
 
-        // EDGES: SETUP_PERSONA -> EXTRACTION -> END
+        // WORKFLOW: SETUP_PERSONA -> EXTRACTION
         builder.addEdge(AGENT_NODES.SETUP_PERSONA, AGENT_NODES.EXTRACTION);
     }
 }

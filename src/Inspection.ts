@@ -1,27 +1,38 @@
-// import { InspectorAgent } from "./Agents/InspectorAgent";
-// import { GEMINI_AUTO_AGENT_KEY, GEMINI_AUTO_AGENT_MODEL, PERSONA_DIR, RULES_DIR } from "./settings";
-// import { LLMVendor } from "./types";
-// import { FileHelper } from "./Utils/FileHelper";
-// import { Logzer } from "./Utils/Logger";
+import { Inspector } from "./Agents/Inspector";
+import { GEMINI_AUTO_AGENT_KEY, GEMINI_AUTO_AGENT_MODEL, PERSONA_DIR, RULES_DIR } from "./settings";
+import { LLMVendor } from "./types";
 
+async function logInspection() {
 
-// async function logAudit() {
+    // Init Agent
+    const inspector = new Inspector({
+        vendor: LLMVendor.GEMINI,
+        apiKey: GEMINI_AUTO_AGENT_KEY as any,
+        model: GEMINI_AUTO_AGENT_MODEL,
+        personaTemplatePath: `${PERSONA_DIR}/inspector_persona.njk`,
+        additionalContexts: [`${RULES_DIR}/analyze_log_rules.njk`],
+    });
 
-//     // Init Agent to inspect logs
-//     const inspector = new InspectorAgent({
-//         vendor: LLMVendor.GEMINI,
-//         apiKey: GEMINI_AUTO_AGENT_KEY as any,
-//         model: GEMINI_AUTO_AGENT_MODEL,
-//         personaTemplatePath: `${PERSONA_DIR}/extractor_persona.njk`,
-//         additionalContexts: [`${RULES_DIR}/extract_test_case_rules.njk`],
-//     });
+    console.log(`[${inspector.agentId}][🔍] >> Starting log inspection...`);
+    try {
+        const response = await inspector.execute(
+            {
+                inspector_logFilePath: `full_execution.log`,
+            },
+            `inspection_${Date.now()}`
+        );
 
-//     console.log("[🕵️🕵️🕵️] >> Inspector is analyzing the execution.log...");
-//     const report = await inspector.inspectLogFile(Logzer.logFilePath);
+        const finalRecord = {
+            timestamp: new Date().toISOString(),
+            ...response.inspector_inspectionResult
+        };
+
+        await inspector.writeInspectionToFile(finalRecord, 'log_inspections.json');
+
+    } catch (error) {
+        console.error(`[${inspector.agentId}][🕵️] >> ❌ Log inspection failed:`, error);
+    }
     
-//     // Save the final technical report
-//     FileHelper.writeFile('output/', 'technical_audit.md', report);
-//     console.log("✅ Technical Audit Report generated in output/technical_audit.md");
-// }
+}
 
-// logAudit();
+logInspection();

@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export class FileHelper {
-    static readTextFile(filePath: string): string {
+    static readFile(filePath: string): string {
         return fs.readFileSync(path.join(filePath), 'utf-8');
     }
 
@@ -24,7 +24,7 @@ export class FileHelper {
     }
 
     static retrieveNjkTemplate(filePath: string): string {
-        return this.readTextFile(filePath);
+        return this.readFile(filePath);
     }
 
     static isFilePath(input: string): boolean {

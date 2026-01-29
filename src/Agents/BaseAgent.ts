@@ -8,7 +8,6 @@ import * as path from 'path';
 import { AgentConfig, AgentState, LLMVendor, UploadedFileCtx } from "../types";
 import { FileHelper } from "../Utils/FileHelper";
 import * as nunjucks from "nunjucks";
-import { Logzer } from "../Utils/Logger";
 import { GraphBuilder } from "../Services/GraphService/GraphBuilder";
 import { AGENT_NODES } from "../constants";
 import { CommonHelper } from "../Utils/CommonHelper";
@@ -21,6 +20,7 @@ export abstract class BaseAgent {
 
     protected systemPrompt!: SystemMessage;
     protected workflowRunnable: any; 
+    public agentId: string = "Allfather";
 
     constructor(config: AgentConfig) {
         // Load configs and initialize LLM model
@@ -85,7 +85,7 @@ export abstract class BaseAgent {
         });
     }
 
-    public buildPrompt(templatePath: string, dynamicData: object): string {
+    public buildPrompt(templatePath = 'N/A', dynamicData: object): string {
         const promptTemplate = FileHelper.retrieveNjkTemplate(templatePath);
         return nunjucks.renderString(promptTemplate, dynamicData);
     }
@@ -132,7 +132,7 @@ export abstract class BaseAgent {
                 return response as AIMessage;
             } catch (error) {
                 if (this.isQuotaError(error)) {
-                    console.log(`[🕵️🕵️🕵️] >> ⚠️ Quota error encountered. Retries left: ${max_retries - 1}`);
+                    console.log(`[${this.agentId}][🦸‍♂️] >> ⚠️ Quota error encountered. Retries left: ${max_retries - 1}`);
                     max_retries -= 1;
                     if (max_retries === 0) {
                         throw new Error("Max retries reached due to quota errors.");
@@ -156,7 +156,7 @@ export abstract class BaseAgent {
         const failedUploads: string[] = [];
 
         for (const filePath of filePaths) {
-            console.log(`[🕵️🕵️🕵️] >> 📤 Uploading: ${path.basename(filePath)}`);
+            console.log(`[${this.agentId}][🦸‍♂️] >> 📤 Uploading: ${path.basename(filePath)}`);
 
             // 1. Upload
             const uploadResponse = await this.fileManager?.uploadFile(filePath, {
@@ -172,7 +172,7 @@ export abstract class BaseAgent {
             let currentUri = currentFile?.uri || "";
             let currentMimeType = currentFile?.mimeType || "application/octet-stream";
 
-            process.stdout.write(`[🕵️🕵️🕵️] >> ⏳ Processing ${currentDisplayName}`);
+            process.stdout.write(`[${this.agentId}][🦸‍♂️] >> ⏳ Processing ${currentDisplayName}`);
             while (fileState === FileState.PROCESSING) {
                 await CommonHelper.sleep(3000);
                 process.stdout.write(".");
@@ -198,12 +198,12 @@ export abstract class BaseAgent {
     }
 
     protected async cleanupMediaFiles(files: UploadedFileCtx[]): Promise<void> {
-        console.log(`[🕵️🕵️🕵️] >> 🧹 Cleaning up ${files.length} cloud file(s)...`);
+        console.log(`[${this.agentId}][🦸‍♂️] >> 🧹 Cleaning up ${files.length} cloud file(s)...`);
         for (const file of files) {
             try {
                 await this.fileManager?.deleteFile(file.name);
             } catch (error) {
-                console.warn(`[🕵️🕵️🕵️] >> ⚠️ Failed to delete ${file.name}:`, error);
+                console.warn(`[${this.agentId}][🦸‍♂️] >> ⚠️ Failed to delete ${file.name}:`, error);
             }
         }
     }

@@ -16,4 +16,8 @@ export enum AGENT_NODES {
     // Evaluator Nodes
     EVALUATION = "evaluation",
     POST_EVALUATION = "post_evaluation",
+
+    // Auditor Nodes
+    INSPECTION = "inspection",
+    POST_INSPECTION = "post_inspection"
 }

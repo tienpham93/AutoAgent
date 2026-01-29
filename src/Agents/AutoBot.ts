@@ -24,6 +24,7 @@ export class AutoBot extends BaseAgent {
 
     constructor(config: AgentConfig) {
         super(config);
+        this.agentId = `AutoBot_${CommonHelper.generateUUID()}`;
     }
 
     protected extendGraph(builder: GraphBuilder): void {
@@ -47,7 +48,7 @@ export class AutoBot extends BaseAgent {
             }
 
             let fullPrompt = this.buildPrompt(
-                `${RULES_DIR}/execute_test_step_rules.njk`,
+                `${RULES_DIR}/build_test_step_execution_prompt.njk`,
                 {
                     pageContexts: pageKnowledgeBase?.contexts,
                     pageWorkflows: pageKnowledgeBase?.workflow,
@@ -94,9 +95,9 @@ export class AutoBot extends BaseAgent {
             const notes = state.notes?.join(' | ') || 'N/A';
 
             try {
-                console.log(`[🤖🤖🤖] >> 🦾 Executing step: "${step}"`);
-                console.log(`[🤖🤖🤖] >> 📌 Step Note: "${notes}"`);
-                console.log(`[🤖🤖🤖] >> 🎭 Step Script: "${pwScript}"\n`);
+                console.log(`[${this.agentId}][🤖] >> 🦾 Executing step: "${step}"`);
+                console.log(`[${this.agentId}][🤖] >> 📌 Step Note: "${notes}"`);
+                console.log(`[${this.agentId}][🤖] >> 🎭 Step Script: "${pwScript}"\n`);
 
                 const page = await this.page;
                 await eval(
@@ -104,7 +105,7 @@ export class AutoBot extends BaseAgent {
                         ${pwScript} 
                     })()`
                 );
-                console.log(`[🤖🤖🤖] >> ✅ Step "${state.step}" executed successfully.\n`);
+                console.log(`[${this.agentId}][🤖] >> ✅ Step "${state.step}" executed successfully.\n`);
                 return {
                     success: true,
                     error: null,
@@ -112,7 +113,7 @@ export class AutoBot extends BaseAgent {
                 };
 
             } catch (error) {
-                console.error(`[🤖🤖🤖] >> 💥 Execution Error: ${error}`);
+                console.error(`[${this.agentId}][🤖] >> 💥 Execution Error: ${error}`);
                 return {
                     success: false,
                     error: error,
@@ -123,11 +124,11 @@ export class AutoBot extends BaseAgent {
         }
 
         const chatNode = async (state: AgentState) => {
-            const pageSnapshot = await this.waitForUIStability(10000, state);
+            const pageSnapshot = await this.waitForUIStability(20000, state);
             const pageElements = pageSnapshot?.elementTree;
 
             let fullPrompt = this.buildPrompt(
-                `${RULES_DIR}/dry_run_rules.njk`,
+                `${RULES_DIR}/build_dry_run_prompt.njk`,
                 {
                     userInput: state.step,
                     elementsTree: pageElements,
@@ -164,8 +165,8 @@ export class AutoBot extends BaseAgent {
             builder.addConditionalEdge(
                 AGENT_NODES.CODE_EXECUTOR,
                 (state: AgentState) => {
-                    console.log(`[🤖🤖🤖] >> 🔄 Execution attempt: ${state.attempts}`);
-                    console.log(`[🤖🤖🤖] >> ❔ Execution success: ${state.success}`);
+                    console.log(`[${this.agentId}][🤖] >> 🔄 Execution attempt: ${state.attempts}`);
+                    console.log(`[${this.agentId}][🤖] >> ❔ Execution success: ${state.success}`);
 
                     if (state.success) {
                         return AGENT_NODES.END;
@@ -206,9 +207,9 @@ export class AutoBot extends BaseAgent {
     public async extractLog(testName: string, data: any): Promise<void> {
         try {
             FileHelper.writeFile(this.testOutputDir, `${testName}.json`, data);
-            console.log(`[🤖🤖🤖] >> ⏹️ Extract log: ${testName}.json`);
+            console.log(`[${this.agentId}][🤖] >> ⏹️ Extract log: ${testName}.json`);
         } catch (error) {
-            console.error(`[🤖🤖🤖] >> ☠️ Error writing log file: ${error}`);
+            console.error(`[${this.agentId}][🤖] >> ☠️ Error writing log file: ${error}`);
         }
     }
 
@@ -248,12 +249,12 @@ export class AutoBot extends BaseAgent {
             const buffer = await this.page.screenshot({
                 path: filePath
             });
-            console.log(`[🤖🤖🤖] >> 📸 Screenshot saved: ${filePath}`);
+            console.log(`[${this.agentId}][🤖] >> 📸 Screenshot saved: ${filePath}`);
 
             // Return as base64
             return buffer.toString('base64');
         } catch (error) {
-            console.error(`[🤖🤖🤖] >> ☠️ Error taking screenshot: ${error}`);
+            console.error(`[${this.agentId}][🤖] >> ☠️ Error taking screenshot: ${error}`);
             return "";
         }
     }
@@ -263,7 +264,7 @@ export class AutoBot extends BaseAgent {
             const snapshot = await this.page.accessibility.snapshot();
             if (isDebug) {
                 const timestamp = FileHelper.getTimestamp();
-                console.log(`[🤖🤖🤖] >> 🌳 Saving elements tree snapshot: elements_tree_${timestamp}.json`);
+                console.log(`[${this.agentId}][🤖] >> 🌳 Saving elements tree snapshot: elements_tree_${timestamp}.json`);
                 FileHelper.writeFile(this.debugDir, `elements_tree_${timestamp}.json`, snapshot);
             }
 
@@ -320,9 +321,9 @@ export class AutoBot extends BaseAgent {
         for (const knowledge of pageKnowledgeBase) {
             if (title.includes(knowledge.pageTitle.toLowerCase()) &&
                 currentUrl?.includes(knowledge.pageUrl.toLowerCase())) {
-                console.log(`[🤖🤖🤖] >> 💉 Inject page context: ${knowledge.contextsPath}`);
+                console.log(`[${this.agentId}][🤖] >> 💉 Inject page context: ${knowledge.contextsPath}`);
                 const contextsTemplate = FileHelper.retrieveNjkTemplate(knowledge.contextsPath);
-                console.log(`[🤖🤖🤖] >> 💉 Inject page workflow: ${knowledge.workflowPath}`);
+                console.log(`[${this.agentId}][🤖] >> 💉 Inject page workflow: ${knowledge.workflowPath}`);
                 const workflowTemplate = FileHelper.retrieveNjkTemplate(knowledge.workflowPath);
                 return {
                     // TODO: Implement dynamic data injection if needed
@@ -331,9 +332,7 @@ export class AutoBot extends BaseAgent {
                 }
             }
         }
-
     }
-
 
     public extractCode(text: string): string {
         return text.replace(/```javascript/gi, "").replace(/```js/gi, "").replace(/```/g, "").trim();

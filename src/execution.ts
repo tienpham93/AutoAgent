@@ -13,9 +13,15 @@ import {
     RULES_DIR
 } from './settings';
 import { CommonHelper } from './Utils/CommonHelper';
-import { Logzer } from './Utils/Logger';
+import { TerminalLogger } from './Utils/TerminalLogger';
 
-const MAX_CONCURRENT_WORKERS = 2; 
+const MAX_CONCURRENT_WORKERS = 2;
+
+TerminalLogger.initialize(); 
+
+const executionId = CommonHelper.generateUUID();
+
+console.log(`[🧵🧵🧵] >> Execution ID: ${executionId}`);
 
 // Single thread execution
 async function testExecuting(file: string) {
@@ -41,11 +47,11 @@ async function testExecuting(file: string) {
 
     try {
         // READ & PARSE
-        const rawMarkdown = FileHelper.readTextFile(`${TESTS_DIR}/${file}`);
+        const rawMarkdown = FileHelper.readFile(`${TESTS_DIR}/${file}`);
         
         let listTestCase: [TestCase];
+        let thread_id = `extraction_${CommonHelper.generateUUID()}`;
         try {
-            const thread_id = `extraction_${CommonHelper.generateUUID()}`;
 
             const response = await extractor.execute(
                 {
@@ -54,13 +60,13 @@ async function testExecuting(file: string) {
                 thread_id
             )
             listTestCase = response.extractor_extractedTestcases as [TestCase];
-            console.log(`[🚁🚁🚁] >> ✅ Loaded successfully:\n${JSON.stringify(listTestCase, null, 2)}`);
+            console.log(`[${extractor.agentId}][🚁] >> ✅ Loaded successfully:\n${JSON.stringify(listTestCase, null, 2)}`);
             
             // DELAY to Cool down after the heavy "Parse" operation
             await CommonHelper.sleep(5000); 
 
         } catch (error) {
-            console.error(`[🚁🚁🚁] >> ❌ Failed to prase "${file}":`, error);
+            console.error(`[${extractor.agentId}][🚁] >> ❌ Failed to prase "${file}":`, error);
             return; 
         }
 
@@ -68,6 +74,7 @@ async function testExecuting(file: string) {
         autoBot.actionLogs = [];
         for (let testCase of listTestCase!) {      
             const reportData = {
+                executionId: executionId,
                 testFile: file,
                 testTitle: testCase!.title,
                 testGoal: testCase!.goal,
@@ -76,12 +83,12 @@ async function testExecuting(file: string) {
                 timestamp: new Date().toISOString()
             };
 
+            let thread_id = 'unknown';
             try {
                 await autoBot.startBrowser(testCase!.title);
-
                 for (let step of testCase!.steps) {
                     // DELAY to ensures max 30 RPM per worker (Total 60 RPM for 2 workers)
-                    const thread_id = `execution_${CommonHelper.generateUUID()}`;
+                    thread_id = `execution_${CommonHelper.generateUUID()}`;
 
                     await autoBot.execute(
                         {
@@ -92,7 +99,7 @@ async function testExecuting(file: string) {
                     );
                 }
             } catch (err) {
-                console.error(`[${file}] >> Error in case "${testCase!.title}"`, err);
+                console.error(`[${autoBot.agentId}][${file}] >> Error in case "${testCase!.title}"`, err);
             } finally {
                 await autoBot.stopBrowser();
                 await autoBot.extractLog(testName, reportData);
@@ -117,13 +124,11 @@ async function executions() {
         });
 
         await Promise.all(tasks);
-        console.log("🏁 All workers finished execution.");
+        console.log("[🧵🧵🧵] >> ✅ All workers finished execution.");
 
     } catch (err) {
-        console.log(`[🕵️🕵️🕵️] >> ❌ Critical Error: ${err}`);
-    } finally {
-        Logzer.logStream.end();
+        console.log(`[🧵🧵🧵] >> ❌ Critical Error: ${err}`);
     }
 }
 
-executions()
+executions();

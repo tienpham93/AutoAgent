@@ -1,4 +1,3 @@
-import { Logzer } from "./Logger";
 import { v4 as uuidv4 } from 'uuid';
 
 export class CommonHelper {
@@ -8,8 +7,8 @@ export class CommonHelper {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    static generateUUID(): string {
-        return uuidv4();
+    static generateUUID(totalDigits = -12): string {
+        return uuidv4().slice(totalDigits);
     }
         
 }

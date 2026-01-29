@@ -17,9 +17,9 @@ Verify that a user can successfully search for a list of flights when entering a
 
 ### 👣 Step Actions 👣
 1. Enter "Ho Chi Minh City" to "Flying from" input field
-2. Select the 1st option from the suggestion list
+2. Select the 1st option from the "Flying from" suggestion list 
 3. Enter "Hong Kong" to "Flying to" input field
-4. Select the 1st option from the suggestion list
+4. Select the 1st option from the "Flying to" suggestion list
 5. At Departure date picker, Select default departure date
 6. At Flight Occupancy panel, Click Business class
 7. Click SEARCH FLIGHTS button
@@ -29,4 +29,4 @@ Verify that a user can successfully search for a list of flights when entering a
 7.2 The Flight Search bar displays correct searched details such as flying from Ho Chi Minh to Hong Kong, departure date is today, number of passenger is 1 and Business class
 
 ### 📝 Notes 📝
-N/A
+6. If is there any popup displaying, you should close it before executing step 7

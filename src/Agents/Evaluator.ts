@@ -4,30 +4,32 @@ import { AgentConfig, AgentState, EvaluationResult, LLMVendor, TestRunData, Uplo
 import { BaseAgent } from "./BaseAgent";
 import * as fs from 'fs';
 import * as path from 'path';
-import { Logzer } from "../Utils/Logger";
 import { GraphBuilder } from "../Services/GraphService/GraphBuilder";
 import { AGENT_NODES } from "../constants";
+import { CommonHelper } from "../Utils/CommonHelper";
 
 export class Evaluator extends BaseAgent {
     constructor(config: AgentConfig) {
         super(config);
+        this.agentId = `Evaluator_${CommonHelper.generateUUID()}`;
         this.fileManager = new GoogleAIFileManager(this.apiKey);
     }
 
     protected extendGraph(builder: GraphBuilder): void {
-        // videoPaths: string[], jsonPath: string
         /**
          * 🟢 Define Nodes
         */
         const evaluationNode = async (state: AgentState) => {
             // Prepare Prompt with context
-            console.log(`[🕵️🕵️🕵️] >> 🎬 Preparing analysis for ${state.evaluator_videoPaths.length} video(s)...`);
+            console.log(`[${this.agentId}][🕵️] >> 🎬 Preparing analysis for ${state.evaluator_videoPaths.length} video(s)...`);
 
-            if (!fs.existsSync(state.evaluator_jsonPath)) throw new Error(`JSON Log not found: ${state.evaluator_jsonPath}`);
+            if (!fs.existsSync(state.evaluator_jsonPath)) {
+                throw new Error(`[${this.agentId}][🕵️] >> JSON Log not found: ${state.evaluator_jsonPath}`);
+            }
             const testLogContext = fs.readFileSync(state.evaluator_jsonPath, 'utf-8');
 
             const fullPrompt = this.buildPrompt(
-                `${RULES_DIR}/evaluate_test_output_rules.njk`,
+                `${RULES_DIR}/build_evaluation_prompt.njk`,
                 {
                     numberOfVideos: state.evaluator_videoPaths.length,
                     testLogContext: testLogContext
@@ -62,7 +64,7 @@ export class Evaluator extends BaseAgent {
                     messages: [...state.messages, response]
                 };
             } catch (error) {
-                console.error("[🕵️🕵️🕵️] >> 💥 Evaluation Error:", error);
+                console.error(`[${this.agentId}][🕵️] >> 💥 Evaluation Error:`, error);
                 return {
                     success: false,
                     error: error,
@@ -74,7 +76,7 @@ export class Evaluator extends BaseAgent {
         const postEvaluationNode = async (state: AgentState) => {  
             const lastMessage = state.messages[state.messages.length - 1];
             const lastMessageText = lastMessage?.content?.toString() || "{}";
-            console.log("[🕵️🕵️🕵️] >> 📝 Evaluation Response:", lastMessageText);
+            console.log(`[${this.agentId}][🕵️] >> 📝 Evaluation Response:`, lastMessageText);
 
             try {
                 const cleanJson = lastMessageText.replace(/```json|```/g, '').trim();
@@ -84,7 +86,7 @@ export class Evaluator extends BaseAgent {
                     messages: state.messages
                 };
             } catch (error) {
-                console.error("[🕵️🕵️🕵️] >> ❌ Post-Evaluation Parsing Error:", error);
+                console.error(`[${this.agentId}][🕵️] >> ❌ Post-Evaluation Parsing Error:`, error);
                 return {
                     evaluator_evaluationResult: null,
                     messages: state.messages,
@@ -100,7 +102,7 @@ export class Evaluator extends BaseAgent {
         builder.addNode(AGENT_NODES.EVALUATION, evaluationNode);
         builder.addNode(AGENT_NODES.POST_EVALUATION, postEvaluationNode);
 
-        // WORKFLOW: SETUP_PERSONA -> EVALUATION -> POST_EVALUATION -> END
+        // WORKFLOW: SETUP_PERSONA -> EVALUATION -> POST_EVALUATION
         builder.addEdge(AGENT_NODES.SETUP_PERSONA, AGENT_NODES.EVALUATION);
         builder.addEdge(AGENT_NODES.EVALUATION, AGENT_NODES.POST_EVALUATION);
 
@@ -108,8 +110,8 @@ export class Evaluator extends BaseAgent {
         builder.addConditionalEdge(
             AGENT_NODES.EVALUATION,
             (state: AgentState) => {
-                console.log(`[🕵️🕵️🕵️] >> 🔄 Evaluation attempt: ${state.attempts}`);
-                console.log(`[🕵️🕵️🕵️] >> ❔ Evaluation success: ${state.success}`);
+                console.log(`[${this.agentId}][🕵️] >> 🔄 Evaluation attempt: ${state.attempts}`);
+                console.log(`[${this.agentId}][🕵️] >> ❔ Evaluation success: ${state.success}`);
 
                 if (state.success) {
                     return AGENT_NODES.POST_EVALUATION;
@@ -117,7 +119,7 @@ export class Evaluator extends BaseAgent {
 
                 // Retry up to 3 attempts
                 if (state.attempts >= 3) {
-                    console.log("[🕵️🕵️🕵️] >> ⚠️ Max attempts reached. Ending evaluation.");
+                    console.log(`[${this.agentId}][🕵️] >> ⚠️ Max attempts reached. Ending evaluation.`);
                     return AGENT_NODES.END;
                 }
                 return AGENT_NODES.EVALUATION;
@@ -182,8 +184,8 @@ export class Evaluator extends BaseAgent {
                 const raw = fs.readFileSync(targetFilePath, 'utf-8');
                 evaluations = JSON.parse(raw);
             } catch (e) {
-                console.warn("[🕵️🕵️🕵️] >> ⚠️ Existing file corrupted. Starting fresh.");
-                console.log("[🕵️🕵️🕵️] >> ⚠️ Error:", e);
+                console.warn(`[${this.agentId}][🕵️] >> ⚠️ Existing file corrupted. Starting fresh.`);
+                console.log(`[${this.agentId}][🕵️] >> ⚠️ Error:`, e);
             }
         }
 
@@ -191,9 +193,9 @@ export class Evaluator extends BaseAgent {
 
         try {
             fs.writeFileSync(targetFilePath, JSON.stringify(evaluations, null, 2));
-            console.log(`[🕵️🕵️🕵️] >> 💾 Result saved to ${path.basename(targetFilePath)}`);
+            console.log(`[${this.agentId}][🕵️] >> 💾 Result saved to ${path.basename(targetFilePath)}`);
         } catch (e) {
-            console.error(`[🕵️🕵️🕵️] >> ❌ Save failed: ${e}`);
+            console.error(`[${this.agentId}][🕵️] >> ❌ Save failed: ${e}`);
         }
     }
 

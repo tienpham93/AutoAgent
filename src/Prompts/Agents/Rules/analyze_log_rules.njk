@@ -1,0 +1,59 @@
+------------------------------
+📤 OUTPUT SCHEMA: purely a valid JSON object. No markdown.
+{
+  "system_health": {
+    "status": "HEALTHY | DEGRADED | CRITICAL",
+    "total_workers_started": Number,
+    "total_workers_finished": Number,
+    "fatal_crashes_count": Number,
+    "critical_logs": ["Array of strings containing the specific fatal error messages"]
+  },
+  "environmental_factors": {
+    "network_stability": {
+      "timeout_events": Number,
+      "assessment": "String (e.g., 'High Latency detected on Agoda search page')"
+    },
+    "llm_service_health": {
+      "parsing_failures": Number,
+      "quota_warnings": Number,
+      "assessment": "String (e.g., 'Gemini API stable' or 'Returned bad JSON twice')"
+    },
+    "system_overhead": {
+      "throttle_events_count": Number,
+      "estimated_idle_time_ms": Number (Sum of all 'Sleeping for X ms')
+    }
+  },
+  "agent_performance_matrix": [
+    {
+      "agent_id": "String",
+      "role": "AutoBot | Extractor",
+      "assigned_file": "String (e.g., homepage_search_flights.md)",
+      "test_run_ids": ["Array of strings containing test_run_id of this agent worked on"]
+      "metrics": {
+        "steps_attempted": Number,
+        "self_healing_trigger_count": Number,
+        "did_recover": Boolean
+      },
+      "root_cause_analysis": "String (e.g., 'Agent struggled with Flight Suggestion dropdown due to timeout')"
+    }
+  ]
+}
+------------------------------
+📋 LOG ANALYZING RULES:
+    1️⃣. SYSTEM HEALTH & FATAL ERRORS:
+        📌 Fatal Crashes: Look for logs starting with `[🧵🧵🧵]` containing "❌", "Critical Error", or "Worker Critical error".
+        📌 Worker Lifecycle: Did all workers that started (`Starting processing for...`) actually finish (`Worker Finished file...`)? If not, flag as "HUNG PROCESS".
+    2️⃣. EXTERNAL FACTORS (The "Why"):
+        📌 Network/Performance: Any `TimeoutError` or `10000ms exceeded` indicates network lag or UI slowness.
+        📌 Bad Data/API:
+            - `JSON.parse` errors or "Failed to parse" indicates the LLM Vendor returned malformed data.
+            - "Quota error" or "429" indicates API limitations.
+        📌 Throttling Overhead: Count occurrences of `[⏳⏳⏳]`. High counts indicate the system is deliberately slowing down to save resources (which affects total run duration).
+    3️⃣. AGENT METRICS:
+        📌 AutoBot (Execution): 
+            - *Fragility Score*: High retries (Attempt 3+) on simple actions like `click` or `fill` suggest flaky UI or bad selectors.
+        📌 Extractor (parsing):
+            - *Accuracy*: If the Extractor fails to parse, it blocks the whole worker. This is a critical dependency failure.
+------------------------------
+{{ AdditionalRulesContexts }}
+------------------------------
