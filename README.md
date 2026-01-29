@@ -1,8 +1,62 @@
 # 🤖 Agentic Automation Framework
 
-An agentic automation framework powered by **LangChain**, **LangGraph**, and **Playwright**. This project utilizes three specialized LLM Agents to transform natural language test cases into executed actions, recorded artifacts, and verified results.
+An agentic automation framework powered by **LangChain**, **LangGraph**, and **Playwright**. This project utilizes four specialized LLM Agents to transform natural language test cases into executed actions, recorded artifacts, verified results, and system health audits.
 
-## 🔄 The 3-Agent Workflow
+## Diagram
+````mermaid
+flowchart LR
+    %% Styles
+    classDef agent fill:#2d3436,stroke:#fff,stroke-width:2px,color:#fff,rx:5px,ry:5px;
+    classDef artifact fill:#ffeaa7,stroke:#fdcb6e,stroke-width:2px,color:#2d3436,stroke-dasharray: 5 5;
+    classDef external fill:#74b9ff,stroke:#0984e3,stroke-width:2px,color:#fff;
+    classDef report fill:#55efc4,stroke:#00b894,stroke-width:2px,color:#2d3436;
+
+    subgraph Inputs ["1. Input Phase"]
+        direction TB
+        RawTest[📄 Raw Test Case<br/>Text / PDF]
+    end
+
+    subgraph Execution ["2. Execution Phase"]
+        direction TB
+        Extractor(📄 Extractor Agent):::agent
+        JsonSteps[Testcase.json]:::artifact
+        AutoAgent(🦾 Auto Agent):::agent
+        Browser[🌐 Playwright Browser]:::external
+    end
+
+    subgraph Artifacts ["3. Artifacts"]
+        direction TB
+        Video[📹 Video.webm]:::artifact
+        Logs[📝 Execution Logs]:::artifact
+    end
+
+    subgraph Analysis ["4. AI Analysis Phase"]
+        direction TB
+        Evaluator(🕵️ Evaluator Agent):::agent
+        Inspector(👮 Inspector Agent):::agent
+    end
+
+    subgraph Output ["5. Reporting"]
+        Allure(📊 Allure Report):::report
+    end
+
+    %% Connections
+    RawTest --> Extractor
+    Extractor -->|Parses| JsonSteps
+    JsonSteps --> AutoAgent
+    AutoAgent <-->|Self-Healing| Browser
+    AutoAgent -->|Generates| Video
+    AutoAgent -->|Generates| Logs
+    
+    Video --> Evaluator
+    Logs --> Evaluator
+    Logs --> Inspector
+
+    Evaluator -->|Verifies Logic| Allure
+    Inspector -->|Audits System| Allure
+````
+
+## 🔄 The 4-Agent Workflow
 
 1.  **📄 ExtractorAgent**:
     *   **Input**: Raw test case descriptions (Text/PDF/Markdown/Json).
@@ -19,17 +73,22 @@ An agentic automation framework powered by **LangChain**, **LangGraph**, and **P
     *   **Action**: Uploads the video to Google Gemini, watches the playback, and compares it against the expected logs to verify logic and visual correctness.
     *   **Output**: Generates `evaluations.json` for the final report.
 
+4.  **👮 InspectorAgent**:
+    *   **Input**: Raw terminal logs (`full_execution.log`) from the entire run.
+    *   **Action**: Acts as a Site Reliability Engineer (SRE). It scans the logs to detect infrastructure issues (Network Lag, API Quotas), calculates Agent stability scores, and identifies root causes for retries.
+    *   **Output**: Generates `log_inspections.json` (System Health Audit).
+
 ## 🌟 Key Features
 
 *   **🧠 Intelligent Automation**
     *   Unlike traditional frameworks stuck with static Page Object classes and fixed locator queries—which demand significant maintenance effort whenever the UI evolves. **AutoAgent** takes a dynamic approach by equipping real-time automation basis such as the **Elements Tree**, **Page Contexts**, and **Workflow Instructions**, it generates and executes Playwright code instantly. This eliminates the need for brittle selectors and reduces the maintenance burden.
 
 *   **🕸️ Self-Healing Execution**
-    *   Built to withstand UI flakiness. If the `AutoAgent` encounters a Playwright error (e.g., `TimeoutError` or `ElementNotFound`), it doesn't just fail.
+    *   Built to withstand UI flakiness. If the `AutoBot Agent` encounters a Playwright error (e.g., `TimeoutError` or `ElementNotFound`), it doesn't just fail.
     *   It captures the error, re-scans the current **Elements Tree**, diagnoses the root cause, and **regenerates the code** to recover and proceed automatically.
 
 *   **👀 Flexible and Tolerant Assertion**
-    *   Implements the **LLM-as-a-Judge** technique to the **EvaluatorAgent**.
+    *   Implements the **LLM-as-a-Judge** technique to the **Evaluator Agent**.
     *   Instead of brittle, exact-match code assertions, the agent acts as a human inspector. It **watches the execution video**, reads the logs, and compares them against the test requirements to grade a **PASS/FAIL**. This allows the test to tolerate minor UI variances (like color changes or text formatting) while strictly enforcing business logic.
 
 ***
@@ -49,10 +108,11 @@ Based on the actual source code organization:
 ```plaintext
 src/
 ├── Agents/
-│   ├── AutoAgent.ts       # Core Execution Loop (Generator/Executor)
-│   ├── BaseAgent.ts       # Shared logic (LLM Client, File Uploads)
-│   ├── EvaluatorAgent.ts  # Video Analysis Logic
-│   └── ExtractorAgent.ts  # Test Case Parsing Logic
+│   ├── AutoBot.ts          # Core Execution Loop (Generator/Executor)
+│   ├── BaseAgent.ts        # Shared logic (LLM Client, File Uploads)
+│   ├── Evaluator.ts        # Video Analysis Logic
+│   ├── Extractor.ts        # Test Case Parsing Logic
+│   └── Inspector.ts        # Log Analysis & System Auditing
 ├── Debug/
 │   ├── Elements/          # Snapshots of Accessibility Trees
 │   └── Debugger.ts        # Script to dry-run
@@ -68,7 +128,8 @@ src/
 ├── Utils/
 │   └── FileHelper.ts      # IO utilities
 ├── execution.ts           # Orchestrator for Extraction & Execution
-└── evaluation.ts          # Orchestrator for Evaluation
+├── evaluation.ts          # Orchestrator for Evaluation
+└── inspection.ts          # Orchestrator for System Inspection
 ```
 
 ## 🚀 Getting Started
@@ -96,7 +157,7 @@ env/
 
 ## 🏃 Usage
 
-The process is split into Execution (Agents 1 & 2) and Evaluation (Agent 3).
+The process is split into Execution, Evaluation, Inspection, and Reporting.
 
 ### 1. Run Extraction & Execution
 This script runs the `ExtractorAgent` to parse tests and immediately triggers the `AutoAgent` to run them.
@@ -111,10 +172,22 @@ Triggers the `EvaluatorAgent` to process the artifacts generated in the previous
 yarn run test:eval
 ```
 
-### 3. Generate Report
-Compiles the JSON results into an HTML report.
+### 3. Run System Inspection
+Triggers the `InspectorAgent` to analyze the terminal logs for system health and performance metrics.
+```bash
+yarn run test:inspect
+```
+
+### 4. Generate Report
+Compiles the JSON results (Tests + System Audit) into an HTML report.
 ```bash
 yarn run test:allure
+```
+
+### ⚡ Run End-to-End
+Execute the entire pipeline (Exec -> Eval -> Inspect -> Report) in one command:
+```bash
+yarn run test:e2e
 ```
 
 ## 🔬 Way of Working: The Debugger Workflow
@@ -157,6 +230,3 @@ The workflow for adding a new page or refining an existing test step is iterativ
 
 ***
 ## 🏅 Author: tien-pham 🏅
-
-
-

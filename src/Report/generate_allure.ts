@@ -66,7 +66,7 @@ function preserveHistory() {
     const historyDest = path.join(ALLURE_RESULTS_DIR, 'history');
 
     if (fs.existsSync(historySource)) {
-        console.log("[⏳] >> 📜 Found previous history. Copying to new results...");
+        console.log("[⏳⏳⏳] >> 📜 Found previous history. Copying to new results...");
         
         if (!fs.existsSync(historyDest)) {
             fs.mkdirSync(historyDest, { recursive: true });
@@ -78,9 +78,9 @@ function preserveHistory() {
             const destFile = path.join(historyDest, file);
             fs.copyFileSync(srcFile, destFile);
         });
-        console.log(`[⏳] >> ✅ Restored ${files.length} history files (Trend graph will update).`);
+        console.log(`[⏳⏳⏳] >> ✅ Restored ${files.length} history files (Trend graph will update).`);
     } else {
-        console.log("[⏳] >> ℹ️ No previous history found (First run or report cleaned).");
+        console.log("[⏳⏳⏳] >> ℹ️ No previous history found (First run or report cleaned).");
     }
 }
 
@@ -189,7 +189,7 @@ function generateAllureReport() {
     generateEnvironment(auditData);
     generateCategories();
     
-    console.log(`[📉] >> ✅ Report Generation Complete.`);
+    console.log(`[📉📉📉] >> ✅ Report Generation Complete.`);
 }
 
 generateAllureReport();
