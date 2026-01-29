@@ -2,7 +2,7 @@
 
 An agentic automation framework powered by **LangChain**, **LangGraph**, and **Playwright**. This project utilizes four specialized LLM Agents to transform natural language test cases into executed actions, recorded artifacts, verified results, and system health audits.
 
-## Diagram
+## 🏗️ Diagram
 ````mermaid
 flowchart LR
     %% Styles
@@ -13,21 +13,28 @@ flowchart LR
 
     subgraph Inputs ["1. Input Phase"]
         direction TB
-        RawTest[📄 Raw Test Case<br/>Text / PDF]
+        RawTest[📄 Raw Test Case<br/>Text/Markdown]
     end
 
     subgraph Execution ["2. Execution Phase"]
         direction TB
         Extractor(📄 Extractor Agent):::agent
         JsonSteps[Testcase.json]:::artifact
-        AutoAgent(🦾 Auto Agent):::agent
+        AutoAgent(🦾 AutoBot Agent):::agent
         Browser[🌐 Playwright Browser]:::external
+    end
+
+    subgraph Input ["Page Material"]
+        ElementTree(🌳 Element Tree):::artifact
+        Screenshot(📷 Screenshot):::artifact
+        PageKnowledge(📖 Page knowledge):::artifact
     end
 
     subgraph Artifacts ["3. Artifacts"]
         direction TB
         Video[📹 Video.webm]:::artifact
         Logs[📝 Execution Logs]:::artifact
+        TermialLogs[💻 Termial Log]:::artifact
     end
 
     subgraph Analysis ["4. AI Analysis Phase"]
@@ -43,37 +50,45 @@ flowchart LR
     %% Connections
     RawTest --> Extractor
     Extractor -->|Parses| JsonSteps
+
     JsonSteps --> AutoAgent
-    AutoAgent <-->|Self-Healing| Browser
+    ElementTree --> AutoAgent
+    Screenshot --> AutoAgent
+    PageKnowledge --> AutoAgent
+
+    AutoAgent -->|Playwright Script| Browser
+    Browser -->|Error| AutoAgent
+
     AutoAgent -->|Generates| Video
     AutoAgent -->|Generates| Logs
-    
+    AutoAgent -->|Generates| TermialLogs
+
     Video --> Evaluator
     Logs --> Evaluator
-    Logs --> Inspector
+    TermialLogs --> Inspector
 
-    Evaluator -->|Verifies Logic| Allure
-    Inspector -->|Audits System| Allure
+    Evaluator -->|Evaluated Test Results| Allure
+    Inspector -->|Agent & System Performance| Allure
 ````
 
 ## 🔄 The 4-Agent Workflow
 
-1.  **📄 ExtractorAgent**:
+1.  **📄 Extractor Agent**:
     *   **Input**: Raw test case descriptions (Text/PDF/Markdown/Json).
     *   **Action**: Analyzes the intent and requirements using an LLM.
     *   **Output**: Produces a structured `testcase.json` containing discrete, executable steps.
 
-2.  **🦾 AutoAgent**:
+2.  **🦾 AutoBot Agent**:
     *   **Input**: `testcase.json`.
     *   **Action**: Spins up a browser (Playwright), performs the steps, handles dynamic UI changes, and attempts self-healing on errors.
     *   **Output**: Generates execution artifacts: `video.webm` and `execution_logs.json`.
 
-3.  **🕵️ EvaluatorAgent**:
+3.  **🕵️ Evaluator Agent**:
     *   **Input**: `video.webm` and `execution_logs.json`.
     *   **Action**: Uploads the video to Google Gemini, watches the playback, and compares it against the expected logs to verify logic and visual correctness.
     *   **Output**: Generates `evaluations.json` for the final report.
 
-4.  **👮 InspectorAgent**:
+4.  **👮 Inspector Agent**:
     *   **Input**: Raw terminal logs (`full_execution.log`) from the entire run.
     *   **Action**: Acts as a Site Reliability Engineer (SRE). It scans the logs to detect infrastructure issues (Network Lag, API Quotas), calculates Agent stability scores, and identifies root causes for retries.
     *   **Output**: Generates `log_inspections.json` (System Health Audit).
