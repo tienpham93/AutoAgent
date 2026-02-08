@@ -27,7 +27,7 @@ const buildExtractionWorkflow = (extractor: Extractor) => {
 
     // NODE REGISTER
     graph.addNode(AGENT_NODES.SETUP_PERSONA, (state: AgentState) => extractor.getSystemNode(state));
-    graph.addNode(AGENT_NODES.EXTRACTION, (state: AgentState) => extractor.getSystemNode(state));
+    graph.addNode(AGENT_NODES.EXTRACTION, (state: AgentState) => extractor.extractionNode(state));
 
     // graph: SETUP_PERSONA -> EXTRACTION
     graph.setEntryPoint(AGENT_NODES.SETUP_PERSONA);
