@@ -1,5 +1,3 @@
-Here is the brief and concise changelog for your update.
-
 ## [1.0.1] - 2025-01-28
 
 ### ♻️ Refactor: Architecture Decoupling
