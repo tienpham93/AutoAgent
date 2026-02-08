@@ -6,8 +6,6 @@ import { CONTEXTS_DIR, RULES_DIR, WORKFLOWS_DIR } from "../settings";
 import playwrightConfig from '../../playwright.config';
 import * as nunjucks from "nunjucks";
 import { CommonHelper } from "../Utils/CommonHelper";
-import { GraphBuilder } from "../Services/GraphService/GraphBuilder";
-import { AGENT_NODES } from "../constants";
 
 export class AutoBot extends BaseAgent {
     // Playwright Properties
@@ -27,181 +25,127 @@ export class AutoBot extends BaseAgent {
         this.agentId = `AutoBot_${CommonHelper.generateUUID()}`;
     }
 
-    protected extendGraph(builder: GraphBuilder): void {
-        /**
-         * 🟢 Define Nodes
-        */
-        const generatorNode = async (state: AgentState) => {
-            const pageSnapshot = await this.waitForUIStability(10000, state);
-            const pageElements = pageSnapshot?.elementTree;
-            const base64Image = pageSnapshot?.screenshot;
+    public async generatorNode(state: AgentState): Promise<any> {
+        const pageSnapshot = await this.waitForUIStability(10000, state);
+        const pageElements = pageSnapshot?.elementTree;
+        const base64Image = pageSnapshot?.screenshot;
 
-            let currentPageTitle = await JSON.parse(pageElements).name;
-            let currentUrl = await this.page.url();
-            let pageKnowledgeBase: any;
+        let currentPageTitle = await JSON.parse(pageElements).name;
+        let currentUrl = await this.page.url();
+        let pageKnowledgeBase: any;
 
-            // Check if current page have changed to inject Knowledge Base
-            if (this.pageTitle !== currentPageTitle && this.currentUrl !== currentUrl) {
-                this.pageTitle = await JSON.parse(pageElements).name;
-                this.currentUrl = await this.page.url();
-                pageKnowledgeBase = this.detectPageContext(this.pageTitle, this.currentUrl);
+        // Check if current page have changed to inject Knowledge Base
+        if (this.pageTitle !== currentPageTitle && this.currentUrl !== currentUrl) {
+            this.pageTitle = await JSON.parse(pageElements).name;
+            this.currentUrl = await this.page.url();
+            pageKnowledgeBase = this.detectPageContext(this.pageTitle, this.currentUrl);
+        }
+
+        let fullPrompt = this.buildPrompt(
+            `${RULES_DIR}/build_test_step_execution_prompt.njk`,
+            {
+                pageContexts: pageKnowledgeBase?.contexts,
+                pageWorkflows: pageKnowledgeBase?.workflow,
+                currentUrl: this.currentUrl,
+                elementsTree: pageElements,
+                step: state.step,
+                contextNotes: state.notes.join(' | '),
+                error: state.error
             }
+        )
 
-            let fullPrompt = this.buildPrompt(
-                `${RULES_DIR}/build_test_step_execution_prompt.njk`,
+        const userMessage = await this.buildMessageContent(
+            [
                 {
-                    pageContexts: pageKnowledgeBase?.contexts,
-                    pageWorkflows: pageKnowledgeBase?.workflow,
-                    currentUrl: this.currentUrl,
-                    elementsTree: pageElements,
-                    step: state.step,
-                    contextNotes: state.notes.join(' | '),
-                    error: state.error
-                }
-            )
-
-            const userMessage = await this.buildMessageContent(
-                [
-                    {
-                        type: "text",
-                        text: fullPrompt
-                    },
-                    {
-                        type: "image_url",
-                        image_url: {
-                            url: `data:image/png;base64,${base64Image}`
-                        }
+                    type: "text",
+                    text: fullPrompt
+                },
+                {
+                    type: "image_url",
+                    image_url: {
+                        url: `data:image/png;base64,${base64Image}`
                     }
-                ]
-            )
+                }
+            ]
+        )
 
-            // Combine History + New Input temporarily for this call
-            const messagesForModel = [...state.messages, userMessage];
-            const response = await this.sendToLLM({ ...state, messages: messagesForModel });
+        // Combine History + New Input temporarily for this call
+        const messagesForModel = [...state.messages, userMessage];
+        const response = await this.sendToLLM({ ...state, messages: messagesForModel });
 
+        return {
+            autoAgent_domTree: pageElements,
+            autoAgent_screenshot: base64Image,
+            messages: [...state.messages, response],
+            attempts: (state.attempts || 0) + 1
+        };
+
+    }
+
+    public async executorNode(state: AgentState): Promise<any> {
+        const lastMessage = state.messages[state.messages.length - 1]
+        const pwScript = this.extractCode(lastMessage.content.toString());
+
+        const step = state.step;
+        const notes = state.notes?.join(' | ') || 'N/A';
+
+        try {
+            console.log(`[${this.agentId}][🤖] >> 🦾 Executing step: "${step}"`);
+            console.log(`[${this.agentId}][🤖] >> 📌 Step Note: "${notes}"`);
+            console.log(`[${this.agentId}][🤖] >> 🎭 Step Script: "${pwScript}"\n`);
+
+            const page = await this.page;
+            await eval(
+                `(async () => {
+                        ${pwScript} 
+                    })()`
+            );
+            console.log(`[${this.agentId}][🤖] >> ✅ Step "${state.step}" executed successfully.\n`);
             return {
-                autoAgent_domTree: pageElements,
-                autoAgent_screenshot: base64Image,
-                messages: [...state.messages, response],
+                success: true,
+                error: null,
+                messages: [...state.messages, lastMessage]
+            };
+
+        } catch (error) {
+            console.error(`[${this.agentId}][🤖] >> 💥 Execution Error: ${error}`);
+            return {
+                success: false,
+                error: error,
+                messages: [...state.messages, lastMessage],
                 attempts: (state.attempts || 0) + 1
             };
         }
 
-        const executorNode = async (state: AgentState) => {
-            const lastMessage = state.messages[state.messages.length - 1]
-            const pwScript = this.extractCode(lastMessage.content.toString());
+    }
 
-            const step = state.step;
-            const notes = state.notes?.join(' | ') || 'N/A';
+    public async chatNode(state: AgentState): Promise<any> {
+        const pageSnapshot = await this.waitForUIStability(20000, state);
+        const pageElements = pageSnapshot?.elementTree;
 
-            try {
-                console.log(`[${this.agentId}][🤖] >> 🦾 Executing step: "${step}"`);
-                console.log(`[${this.agentId}][🤖] >> 📌 Step Note: "${notes}"`);
-                console.log(`[${this.agentId}][🤖] >> 🎭 Step Script: "${pwScript}"\n`);
-
-                const page = await this.page;
-                await eval(
-                    `(async () => {
-                        ${pwScript} 
-                    })()`
-                );
-                console.log(`[${this.agentId}][🤖] >> ✅ Step "${state.step}" executed successfully.\n`);
-                return {
-                    success: true,
-                    error: null,
-                    messages: [...state.messages, lastMessage]
-                };
-
-            } catch (error) {
-                console.error(`[${this.agentId}][🤖] >> 💥 Execution Error: ${error}`);
-                return {
-                    success: false,
-                    error: error,
-                    messages: [...state.messages, lastMessage],
-                    attempts: (state.attempts || 0) + 1
-                };
+        let fullPrompt = this.buildPrompt(
+            `${RULES_DIR}/build_dry_run_prompt.njk`,
+            {
+                userInput: state.step,
+                elementsTree: pageElements,
             }
-        }
+        )
 
-        const chatNode = async (state: AgentState) => {
-            const pageSnapshot = await this.waitForUIStability(20000, state);
-            const pageElements = pageSnapshot?.elementTree;
-
-            let fullPrompt = this.buildPrompt(
-                `${RULES_DIR}/build_dry_run_prompt.njk`,
+        const userMessage = await this.buildMessageContent(
+            [
                 {
-                    userInput: state.step,
-                    elementsTree: pageElements,
+                    type: "text",
+                    text: fullPrompt
                 }
-            )
+            ]
+        )
 
-            const userMessage = await this.buildMessageContent(
-                [
-                    {
-                        type: "text",
-                        text: fullPrompt
-                    }
-                ]
-            )
-
-            // Combine History + New Input temporarily for this call
-            const messagesForModel = [...state.messages, userMessage];
-            const response = await this.sendToLLM({ ...state, messages: messagesForModel });
-            return {
-                messages: [...state.messages, response],
-            };
-        }
-
-        const automationFlow = () => {
-            // REGISTER
-            builder.addNode(AGENT_NODES.CODE_GENERATOR, generatorNode);
-            builder.addNode(AGENT_NODES.CODE_EXECUTOR, executorNode);
-
-            // WORKFLOW: SETUP_PERSONA -> CODE_GENERATOR -> CODE_EXECUTOR
-            builder.addEdge(AGENT_NODES.SETUP_PERSONA, AGENT_NODES.CODE_GENERATOR);
-            builder.addEdge(AGENT_NODES.CODE_GENERATOR, AGENT_NODES.CODE_EXECUTOR);
-
-            // LOGICS: CODE_EXECUTOR -> (Success ? END : Retry CODE_GENERATOR)
-            builder.addConditionalEdge(
-                AGENT_NODES.CODE_EXECUTOR,
-                (state: AgentState) => {
-                    console.log(`[${this.agentId}][🤖] >> 🔄 Execution attempt: ${state.attempts}`);
-                    console.log(`[${this.agentId}][🤖] >> ❔ Execution success: ${state.success}`);
-
-                    if (state.success) {
-                        return AGENT_NODES.END;
-                    }
-
-                    // Retry up to 3 attempts
-                    if (state.attempts >= 3) {
-                        return AGENT_NODES.END;
-                    }
-                    return AGENT_NODES.CODE_GENERATOR; // Back to generator
-                },
-                {
-                    [AGENT_NODES.CODE_GENERATOR]: AGENT_NODES.CODE_GENERATOR,
-                    [AGENT_NODES.CODE_EXECUTOR]: AGENT_NODES.CODE_EXECUTOR,
-                    [AGENT_NODES.END]: AGENT_NODES.END
-                }
-            );
+        // Combine History + New Input temporarily for this call
+        const messagesForModel = [...state.messages, userMessage];
+        const response = await this.sendToLLM({ ...state, messages: messagesForModel });
+        return {
+            messages: [...state.messages, response],
         };
-
-        const dryRunFlow = () => {
-            // REGISTER
-            builder.addNode(AGENT_NODES.CHAT, chatNode);
-            builder.addNode(AGENT_NODES.CODE_EXECUTOR, executorNode);
-
-            // WORKFLOW: SETUP_PERSONA -> CHAT -> CODE_EXECUTOR
-            builder.addEdge(AGENT_NODES.SETUP_PERSONA, AGENT_NODES.CHAT);
-            builder.addEdge(AGENT_NODES.CHAT, AGENT_NODES.CODE_EXECUTOR);
-        }
-
-        // Choose flow based on DEBUG_MODE
-        if (process.env.DEBUG_MODE === 'true') {
-            dryRunFlow();
-        } else {
-            automationFlow();
-        }
     }
 
     public async extractLog(testName: string, data: any): Promise<void> {

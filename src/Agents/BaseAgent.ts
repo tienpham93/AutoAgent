@@ -1,15 +1,12 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { AIMessage, HumanMessage, MessageContent, SystemMessage } from "@langchain/core/messages";
-import { RunnableConfig } from "@langchain/core/runnables";
+import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { GoogleAIFileManager, FileState } from "@google/generative-ai/server";
 import * as path from 'path';
 import { AgentConfig, AgentState, LLMVendor, UploadedFileCtx } from "../types";
 import { FileHelper } from "../Utils/FileHelper";
 import * as nunjucks from "nunjucks";
-import { GraphBuilder } from "../Services/GraphService/GraphBuilder";
-import { AGENT_NODES } from "../constants";
 import { CommonHelper } from "../Utils/CommonHelper";
 
 export abstract class BaseAgent {
@@ -19,7 +16,6 @@ export abstract class BaseAgent {
     protected fileManager?: GoogleAIFileManager;
 
     protected systemPrompt!: SystemMessage;
-    protected workflowRunnable: any; 
     public agentId: string = "Allfather";
 
     constructor(config: AgentConfig) {
@@ -30,9 +26,7 @@ export abstract class BaseAgent {
         this.apiKey = config.apiKey;
         this.initializeVendor();
 
-        // Init Graph Flow
         this.systemPrompt = new SystemMessage(this.buildSystemPrompt());
-        this.workflowRunnable = this.initGraphFlow();
     }
 
     private initializeVendor(): void {
@@ -90,66 +84,41 @@ export abstract class BaseAgent {
         return nunjucks.renderString(promptTemplate, dynamicData);
     }
 
-    private isQuotaError(error: any): boolean {
-        const msg = (error?.message || "").toLowerCase();
-        const status = error?.status || error?.response?.status;
-        return (
-            msg.includes("429") ||
-            msg.includes("503") ||
-            msg.includes("too many requests") ||
-            status === 429 ||
-            status === 503
-        );
-    }
-
-    private initGraphFlow() {
-        const builder = new GraphBuilder();
-
-        // Register Base Node: Setup Persona
-        builder.addNode(AGENT_NODES.SETUP_PERSONA, (state: AgentState) => {
-            const hasSystem = state.messages.length > 0 && state.messages[0] instanceof SystemMessage;
-            return hasSystem ? {} : { messages: [this.systemPrompt] };
-        });
-
-        // Set Entry Point
-        builder.setEntryPoint(AGENT_NODES.SETUP_PERSONA);
-
-        // Delegate to Child Class
-        this.extendGraph(builder);
-
-        return builder.build();
-    }
-
     /**
-     * 🧩 Abstract Method: Child Agent defines its own nodes/connections here.
-     */
-    protected abstract extendGraph(builder: GraphBuilder): void;
+    * 🟢 Public Node Logic: Setup Persona
+    * This can now be bound to any Graph in execution.ts
+    */
+    public async getSystemNode(state: AgentState): Promise<Partial<AgentState>> {
+        const hasSystem = state.messages.length > 0 && state.messages[0] instanceof SystemMessage;
+        return hasSystem ? {} : { messages: [this.systemPrompt] };
+    }
 
     public async sendToLLM(state: AgentState, max_retries = 5): Promise<AIMessage | any> {
         while (max_retries > 0) {
             try {
                 const response = await this.model.invoke(state.messages);
                 return response as AIMessage;
-            } catch (error) {
+            } catch (error: any) {
                 if (this.isQuotaError(error)) {
-                    console.log(`[${this.agentId}][🦸‍♂️] >> ⚠️ Quota error encountered. Retries left: ${max_retries - 1}`);
+                    console.log(`[${this.agentId}][🦸‍♂️] >> ⚠️ Quota error. Retries left: ${max_retries - 1}`);
                     max_retries -= 1;
-                    if (max_retries === 0) {
-                        throw new Error("Max retries reached due to quota errors.");
-                    }
+                    if (max_retries === 0) throw new Error("Max retries reached.");
                     await CommonHelper.sleep(10000);
                 } else {
                     throw error;
                 }
             }
         }
-
     }
 
-    public async execute(inputs: Partial<AgentState>, threadId: string = "xxx-yyy-zzz"): Promise<AgentState> {
-        const config: RunnableConfig = { configurable: { thread_id: threadId } };
-        return await this.workflowRunnable.invoke(inputs, config);
+    private isQuotaError(error: any): boolean {
+        const msg = (error?.message || "").toLowerCase();
+        const status = error?.status || error?.response?.status;
+        return (
+            msg.includes("429") || msg.includes("503") || status === 429 || status === 503
+        );
     }
+
 
     protected async uploadMediaFiles(filePaths: string[]): Promise<UploadedFileCtx[]> {
         const uploadedFiles: UploadedFileCtx[] = [];
