@@ -45,7 +45,7 @@ const buildAutomationWorkflow = (autoBot: AutoBot) => {
     graph.addNode(AGENT_NODES.CODE_GENERATOR, (state: AgentState) => autoBot.generatorNode(state));
     graph.addNode(AGENT_NODES.CODE_EXECUTOR, (state: AgentState) => autoBot.executorNode(state));
 
-    // graph: SETUP_PERSONA -> CODE_GENERATOR -> CODE_EXECUTOR
+    // WORKFLOW: SETUP_PERSONA -> CODE_GENERATOR -> CODE_EXECUTOR
     graph.setEntryPoint(AGENT_NODES.SETUP_PERSONA);
     graph.addEdge(AGENT_NODES.SETUP_PERSONA, AGENT_NODES.CODE_GENERATOR);
     graph.addEdge(AGENT_NODES.CODE_GENERATOR, AGENT_NODES.CODE_EXECUTOR);
