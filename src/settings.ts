@@ -27,3 +27,4 @@ export const PERSONA_DIR = rootDir + '/src/Prompts/Agents/Persona';
 export const RULES_DIR = rootDir + '/src/Prompts/Agents/Rules';
 export const CONTEXTS_DIR = rootDir + '/src/Prompts/Pages/Contexts';
 export const WORKFLOWS_DIR = rootDir + '/src/Prompts/Pages/Workflows';
+export const SKILLS_DIR = rootDir + '/src/Prompts/skills';

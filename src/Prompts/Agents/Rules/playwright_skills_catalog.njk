@@ -1,0 +1,23 @@
+------------------------------
+📚 PLAYWRIGHT SKILLS CATALOG:
+    👉 Below is the list of available automation skills and when to use them. 
+    👉 You must analyze each step and decide which paths to include in "pwSkillsPaths".
+        1️⃣. [CORE] Core Navigation: `skills/playwright-cli/SKILL.njk`
+            📌 Use for: EVERY step, but you do NOT need to include, by default SKILL.njk will be injected when the agents are initialized
+        2️⃣. [ADV] Request Mocking: `skills/playwright-cli/references/request-mocking.njk`
+            📌 Use for: API mocking, intercepting network, status code changes, or stubbing data.
+        3️⃣. [ADV] Session Management: `skills/playwright-cli/references/session-management.njk`
+            📌 Use for: Cookies, localStorage, Login persistence, or multi-tab scenarios.
+        4️⃣. [ADV] Video/Tracing: `skills/playwright-cli/references/video-recording.njk` or `skills/playwright-cli/references/tracing.njk`
+            📌 Use for: Steps that explicitly mention recording, evidence collection, or debugging.
+        5️⃣. [ADV] Storage State: `skills/playwright-cli/references/storage-state.njk`
+            📌 Use for: Exporting/Importing authentication states.
+------------------------------
+📋 SKILL SELECTION RULES:
+    📌 If the action is "Login", include `session-management.njk`.
+    📌 If the action involves "Wait for API" or "Mock data", include `request-mocking.njk`.
+    📌 Default: Every step MUST at least have `skills/playwright-cli/SKILL.njk`.
+------------------------------
+{{ AdditionalContexts }}
+------------------------------
+

@@ -1,5 +1,5 @@
 import { AutoBot } from './Agents/AutoBot';
-import { Extractor } from './Agents/Extractor';
+import { Architect } from './Agents/Architect';
 import { FileHelper } from './Utils/FileHelper';
 import { AgentState, LLMVendor, TestCase } from './types';
 import pLimit from 'p-limit';
@@ -11,7 +11,8 @@ import {
     GEMINI_AUTO_AGENT_KEY,
     GEMINI_AUTO_AGENT_MODEL,
     TESTS_DIR,
-    RULES_DIR
+    RULES_DIR,
+    SKILLS_DIR
 } from './settings';
 import { CommonHelper } from './Utils/CommonHelper';
 import { TerminalLogger } from './Utils/TerminalLogger';
@@ -22,12 +23,12 @@ TerminalLogger.initialize();
 const executionId = CommonHelper.generateUUID();
 console.log(`[🧵🧵🧵] >> Execution ID: ${executionId}`);
 
-const buildExtractionWorkflow = (extractor: Extractor) => {
+const buildExtractionWorkflow = (architect: Architect) => {
     const graph = new GraphInstance();
 
     // NODE REGISTER
-    graph.addNode(AGENT_NODES.SETUP_PERSONA, (state: AgentState) => extractor.getSystemNode(state));
-    graph.addNode(AGENT_NODES.EXTRACTION, (state: AgentState) => extractor.extractionNode(state));
+    graph.addNode(AGENT_NODES.SETUP_PERSONA, (state: AgentState) => architect.getSystemNode(state));
+    graph.addNode(AGENT_NODES.EXTRACTION, (state: AgentState) => architect.extractionNode(state));
 
     // graph: SETUP_PERSONA -> EXTRACTION
     graph.setEntryPoint(AGENT_NODES.SETUP_PERSONA);
@@ -83,12 +84,17 @@ async function testExecuting(file: string) {
     console.log(`[🧵🧵🧵] >> ⚡ Starting processing for: ${file}`);
     
     // INIT AGENT
-    const extractor = new Extractor({
+    const architect = new Architect({
         vendor: LLMVendor.GEMINI,
         apiKey: GEMINI_EXTRACTOR_KEY as any,
         model: GEMINI_EXTRACTOR_MODEL,
-        personaTemplatePath: `${PERSONA_DIR}/extractor_persona.njk`,
-        additionalContexts: [`${RULES_DIR}/extract_test_case_rules.njk`],
+        personaTemplatePath: `${PERSONA_DIR}/architect_persona.njk`,
+        additionalContexts: [
+            `${SKILLS_DIR}/playwright-cli/SKILL.njk`,
+            `${RULES_DIR}/playwright_skills_catalog.njk`,
+            `${RULES_DIR}/page_knowledge_catalog.njk`,
+            `${RULES_DIR}/extract_test_case_rules.njk`
+        ],
     });
 
     const autoBot = new AutoBot({
@@ -96,10 +102,12 @@ async function testExecuting(file: string) {
         apiKey: GEMINI_AUTO_AGENT_KEY as any,
         model: GEMINI_AUTO_AGENT_MODEL,
         personaTemplatePath: `${PERSONA_DIR}/autobot_persona.njk`,
-        additionalContexts: [`${RULES_DIR}/codegen_rules.njk`],
+        additionalContexts: [
+            `${SKILLS_DIR}/playwright-cli/SKILL.njk`
+        ],
     });
 
-    const extractionWorkflow = buildExtractionWorkflow(extractor);
+    const extractionWorkflow = buildExtractionWorkflow(architect);
     const automationWorkflow = buildAutomationWorkflow(autoBot);
 
     try {
@@ -112,18 +120,18 @@ async function testExecuting(file: string) {
 
             const response = await extractionWorkflow.execute(
                 {
-                    extractor_rawTestCase: rawMarkdown
+                    architect_rawTestCase: rawMarkdown
                 },
                 thread_id
             )
-            listTestCase = response.extractor_extractedTestcases as [TestCase];
-            console.log(`[${extractor.agentId}][🚁] >> ✅ Loaded successfully:\n${JSON.stringify(listTestCase, null, 2)}`);
+            listTestCase = response.architect_extractedTestcases as [TestCase];
+            console.log(`[${architect.agentId}][🚁] >> ✅ Loaded successfully:\n${JSON.stringify(listTestCase, null, 2)}`);
 
             // DELAY to Cool down after the heavy "Parse" operation
             await CommonHelper.sleep(5000);
 
         } catch (error) {
-            console.error(`[${extractor.agentId}][🚁] >> ❌ Failed to prase "${file}":`, error);
+            console.error(`[${architect.agentId}][🚁] >> ❌ Failed to prase "${file}":`, error);
             return;
         }
 
@@ -149,7 +157,10 @@ async function testExecuting(file: string) {
                     await automationWorkflow.execute(
                         {
                             step: step.action,
-                            notes: step.notes
+                            notes: step.notes,
+                            pwSpecificSkillsPaths: step.pwSpecificSkillsPaths,
+                            pageContextPaths: step.pageContextPaths,
+                            pageWorkflowPaths: step.pageWorkflowPaths
                         },
                         thread_id
                     );

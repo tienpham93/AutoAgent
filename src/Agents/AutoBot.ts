@@ -1,51 +1,71 @@
-import { Browser, Page, chromium, BrowserContext } from "playwright";
+import { Browser, Page, BrowserContext } from "playwright";
 import { BaseAgent } from "./BaseAgent";
 import { AgentConfig, AgentState } from "../types";
 import { FileHelper } from "../Utils/FileHelper";
-import { CONTEXTS_DIR, RULES_DIR, WORKFLOWS_DIR } from "../settings";
-import playwrightConfig from '../../playwright.config';
-import * as nunjucks from "nunjucks";
+import { RULES_DIR } from "../settings";
 import { CommonHelper } from "../Utils/CommonHelper";
+import { execSync } from "child_process";
 
 export class AutoBot extends BaseAgent {
     // Playwright Properties
-    private browser: Browser | null = null;
-    private context: BrowserContext | null = null;
     public page: Page | any;
-    private pageTitle: string = '';
     private currentUrl: string = '';
 
     // Reporting & Debugging
     public actionLogs: string[] = [];
     public testOutputDir: string = '';
     public debugDir: string = 'src/Debug/Elements/';
+    private sessionId: string;
 
     constructor(config: AgentConfig) {
         super(config);
+        this.sessionId = `session_${CommonHelper.generateUUID()}`;
         this.agentId = `AutoBot_${CommonHelper.generateUUID()}`;
     }
+
+    /**
+     * Manage cli executions by session ID to every command
+     */
+    private runCli(command: string): string {
+        try {
+            const fullCommand = `playwright-cli -s=${this.sessionId} ${command}`;
+            const output = execSync(fullCommand, { encoding: 'utf-8', stdio: 'pipe' });
+            return output;
+        } catch (error: any) {
+            throw new Error(`CLI Error: ${error.stderr || error.message}`);
+        }
+    }
+
+    private retrieveContents(templatePaths: string[]): any {
+        const contents: string[] = [];
+        try {
+            for (const path of templatePaths) {
+                console.log(`[${this.agentId}][🤖] >> Retrieving contents from: ${path}`);
+                const templateContent = this.buildPrompt(path, {});
+                contents.push(templateContent);
+            }
+            return contents;
+        } catch (error) {
+            console.error(`[${this.agentId}][🤖] >> ☠️ Error reading template: ${error}`);
+            return null;
+        }
+    }        
 
     public async generatorNode(state: AgentState): Promise<any> {
         const pageSnapshot = await this.waitForUIStability(10000, state);
         const pageElements = pageSnapshot?.elementTree;
         const base64Image = pageSnapshot?.screenshot;
 
-        let currentPageTitle = await JSON.parse(pageElements).name;
-        let currentUrl = await this.page.url();
-        let pageKnowledgeBase: any;
-
-        // Check if current page have changed to inject Knowledge Base
-        if (this.pageTitle !== currentPageTitle && this.currentUrl !== currentUrl) {
-            this.pageTitle = await JSON.parse(pageElements).name;
-            this.currentUrl = await this.page.url();
-            pageKnowledgeBase = this.detectPageContext(this.pageTitle, this.currentUrl);
-        }
+        const playwrightSpecificSkills = await this.retrieveContents(state.pwSpecificSkillsPaths);
+        const pageContexts = await this.retrieveContents(state.pageContextPaths);
+        const pageWorkflows = await this.retrieveContents(state.pageWorkflowPaths);
 
         let fullPrompt = this.buildPrompt(
             `${RULES_DIR}/build_test_step_execution_prompt.njk`,
             {
-                pageContexts: pageKnowledgeBase?.contexts,
-                pageWorkflows: pageKnowledgeBase?.workflow,
+                playwrightSpecificSkills: playwrightSpecificSkills?.join("\n\n"),
+                pageContexts: pageContexts?.join("\n\n"),
+                pageWorkflows: pageWorkflows?.join("\n\n"),
                 currentUrl: this.currentUrl,
                 elementsTree: pageElements,
                 step: state.step,
@@ -74,49 +94,39 @@ export class AutoBot extends BaseAgent {
         const response = await this.sendToLLM({ ...state, messages: messagesForModel });
 
         return {
-            autoAgent_domTree: pageElements,
-            autoAgent_screenshot: base64Image,
+            autoBot_domTree: pageElements,
+            autoBot_screenshot: base64Image,
             messages: [...state.messages, response],
             attempts: (state.attempts || 0) + 1
         };
-
     }
 
     public async executorNode(state: AgentState): Promise<any> {
-        const lastMessage = state.messages[state.messages.length - 1]
-        const pwScript = this.extractCode(lastMessage.content.toString());
-
-        const step = state.step;
-        const notes = state.notes?.join(' | ') || 'N/A';
+        const lastMessage = state.messages[state.messages.length - 1];
+        const commands = this.extractCode(lastMessage.content.toString());
 
         try {
-            console.log(`[${this.agentId}][🤖] >> 🦾 Executing step: "${step}"`);
-            console.log(`[${this.agentId}][🤖] >> 📌 Step Note: "${notes}"`);
-            console.log(`[${this.agentId}][🤖] >> 🎭 Step Script: "${pwScript}"\n`);
+            for (let cmd of commands) {
+                // Remove 'playwright-cli' prefix if existing
+                const cleanCmd = cmd.replace(/^playwright-cli\s+/g, '').trim();
 
-            const page = await this.page;
-            await eval(
-                `(async () => {
-                        ${pwScript} 
-                    })()`
-            );
-            console.log(`[${this.agentId}][🤖] >> ✅ Step "${state.step}" executed successfully.\n`);
+                console.log(`[${this.agentId}] >> 🦾 Executing CLI: ${cleanCmd}`);
+                this.runCli(cleanCmd);
+            }
+
             return {
                 success: true,
                 error: null,
-                messages: [...state.messages, lastMessage]
+                messages: state.messages
             };
-
         } catch (error) {
-            console.error(`[${this.agentId}][🤖] >> 💥 Execution Error: ${error}`);
+            console.error(`[${this.agentId}] >> 💥 CLI Execution Error: ${error}`);
             return {
                 success: false,
                 error: error,
-                messages: [...state.messages, lastMessage],
                 attempts: (state.attempts || 0) + 1
             };
         }
-
     }
 
     public async chatNode(state: AgentState): Promise<any> {
@@ -158,45 +168,24 @@ export class AutoBot extends BaseAgent {
     }
 
     public async startBrowser(testName?: string): Promise<void> {
-        const use = playwrightConfig.use || {};
-        const actionTimeout = use.actionTimeout || 10000;
-        const navTimeout = use.navigationTimeout || 30000;
-        const timestamp = FileHelper.getTimestamp();
-        this.testOutputDir = testName ? `output/${testName}_${timestamp}/` : `output/${timestamp}/`;
+        const timestamp = new Date().getTime();
+        this.testOutputDir = `output/${testName || 'test'}_${timestamp}/`;
 
-        this.browser = await chromium.launch({
-            headless: use.headless ?? false,
-        });
-
-        this.context = await this.browser.newContext({
-            viewport: use.viewport || { width: 1280, height: 720 },
-            recordVideo: {
-                dir: this.testOutputDir,
-                size: use.viewport || { width: 1280, height: 720 }
-            }
-        });
-
-        this.page = await this.context.newPage();
-        this.page.setDefaultTimeout(actionTimeout);
-        this.page.setDefaultNavigationTimeout(navTimeout);
+        console.log(`[${this.agentId}] >> 🚀 Initializing CLI Session...`);
+        this.runCli(`open about:blank --headed`);
     }
 
     public async stopBrowser() {
-        if (this.browser) {
-            await this.browser.close();
-        }
+        console.log(`[${this.agentId}] >> 🛑 Closing CLI Session...`);
+        this.runCli(`close`);
     }
 
     public async getPageScreenshot(filename: string): Promise<string> {
         try {
-            const filePath = `${this.testOutputDir}screenshots/${filename}.png`;
-            const buffer = await this.page.screenshot({
-                path: filePath
-            });
-            console.log(`[${this.agentId}][🤖] >> 📸 Screenshot saved: ${filePath}`);
-
-            // Return as base64
-            return buffer.toString('base64');
+            const screenshotPath = `${this.testOutputDir}screenshots/${filename}.png`;
+            this.runCli(`screenshot --filename=${screenshotPath}`);
+            console.log(`[${this.agentId}][🤖] >> 📸 Screenshot saved: ${screenshotPath}`);
+            return FileHelper.readAsBase64(screenshotPath);
         } catch (error) {
             console.error(`[${this.agentId}][🤖] >> ☠️ Error taking screenshot: ${error}`);
             return "";
@@ -205,20 +194,20 @@ export class AutoBot extends BaseAgent {
 
     public async getElementsTree(isDebug = false): Promise<string> {
         try {
-            const snapshot = await this.page.accessibility.snapshot();
+            const snapshot = this.runCli(`snapshot`);
             if (isDebug) {
                 const timestamp = FileHelper.getTimestamp();
                 console.log(`[${this.agentId}][🤖] >> 🌳 Saving elements tree snapshot: elements_tree_${timestamp}.json`);
-                FileHelper.writeFile(this.debugDir, `elements_tree_${timestamp}.json`, snapshot);
+                FileHelper.writeFile(this.debugDir, `elements_tree_${timestamp}.yml`, snapshot);
             }
 
-            return JSON.stringify(snapshot, null, 2);
+            return snapshot;
         } catch (e) {
             return "Error getting snapshot";
         }
     }
 
-    private async waitForUIStability(timeout = 10000, state?: AgentState): Promise<any> {
+    private async waitForUIStability(timeout = 15000, state?: AgentState): Promise<any> {
         const startTime = Date.now();
         const threadId = state?.threadId || 'unknown';
 
@@ -243,42 +232,9 @@ export class AutoBot extends BaseAgent {
         }
     }
 
-
-    private detectPageContext(pageTitle: any, currentUrl?: string) {
-        const pageKnowledgeBase = [
-            {
-                pageTitle: "Agoda Official Site | Free Cancellation & Booking Deals | Over 2 Million Hotels",
-                pageUrl: "https://www.agoda.com/",
-                contextsPath: `${CONTEXTS_DIR}/homepage_context.njk`,
-                workflowPath: `${WORKFLOWS_DIR}/homepage_workflow.njk`
-            },
-            {
-                pageTitle: "Agoda | Hotels in Hong Kong | Best Price Guarantee!",
-                pageUrl: "https://www.agoda.com/search",
-                contextsPath: `${CONTEXTS_DIR}/searchpage_context.njk`,
-                workflowPath: `${WORKFLOWS_DIR}/searchpage_workflow.njk`
-            },
-        ];
-
-        // Return page context and workflow based on title/url match
-        const title = pageTitle.toLowerCase();
-        for (const knowledge of pageKnowledgeBase) {
-            if (title.includes(knowledge.pageTitle.toLowerCase()) &&
-                currentUrl?.includes(knowledge.pageUrl.toLowerCase())) {
-                console.log(`[${this.agentId}][🤖] >> 💉 Inject page context: ${knowledge.contextsPath}`);
-                const contextsTemplate = FileHelper.retrieveNjkTemplate(knowledge.contextsPath);
-                console.log(`[${this.agentId}][🤖] >> 💉 Inject page workflow: ${knowledge.workflowPath}`);
-                const workflowTemplate = FileHelper.retrieveNjkTemplate(knowledge.workflowPath);
-                return {
-                    // TODO: Implement dynamic data injection if needed
-                    contexts: nunjucks.renderString(contextsTemplate, {}),
-                    workflow: nunjucks.renderString(workflowTemplate, {})
-                }
-            }
-        }
-    }
-
-    public extractCode(text: string): string {
-        return text.replace(/```javascript/gi, "").replace(/```js/gi, "").replace(/```/g, "").trim();
+    public extractCode(rawCommands: string): string[] {
+        rawCommands.replace(/```javascript/gi, "").replace(/```js/gi, "").replace(/```/g, "").trim();
+        const commands = rawCommands.split('\n').filter(cmd => cmd.trim().length > 0);
+        return commands;
     }
 }

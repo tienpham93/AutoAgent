@@ -16,7 +16,10 @@ export type TestCase = {
 type Steps = {
     action: string;
     expectedResults: string[];
-    notes: string[]
+    notes: string[];
+    pwSpecificSkillsPaths: string[];
+    pageContextPaths: string[];
+    pageWorkflowPaths: string[];
 }
 
 export interface AgentConfig {
@@ -135,13 +138,16 @@ export const AgentStateAnnotationSchema = Annotation.Root({
     success: Annotation<boolean>(),
     attempts: Annotation<number>(),
     threadId: Annotation<string>(),
+    pwSpecificSkillsPaths: Annotation<string[]>(),
+    pageContextPaths: Annotation<string[]>(),
+    pageWorkflowPaths: Annotation<string[]>(),
 
     // AutoAgent specific annotations
-    extractor_rawTestCase: Annotation<string>(),
-    extractor_extractedTestcases: Annotation<TestCase[]>(),
+    architect_rawTestCase: Annotation<string>(),
+    architect_extractedTestcases: Annotation<TestCase[]>(),
 
-    autoAgent_domTree: Annotation<string>(),
-    autoAgent_screenshot: Annotation<string>(),
+    autoBot_domTree: Annotation<string>(),
+    autoBot_screenshot: Annotation<string>(),
 
     evaluator_videoPaths: Annotation<string[]>(),
     evaluator_jsonPath: Annotation<string>(),

@@ -6,6 +6,11 @@ export class FileHelper {
         return fs.readFileSync(path.join(filePath), 'utf-8');
     }
 
+    static readAsBase64(filePath: string): string {
+        const fileBuffer = fs.readFileSync(filePath);
+        return fileBuffer.toString('base64');
+    }
+
     static readDirectory(dirPath: string): string[] {   
         return fs.readdirSync(dirPath);
     }

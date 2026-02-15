@@ -75,7 +75,7 @@ export abstract class BaseAgent {
         }
 
         return nunjucks.renderString(personaTemplate, {
-            AdditionalRulesContexts: additionalContextsRendered.join("\n\n"),
+            AdditionalContexts: additionalContextsRendered.join("\n\n"),
         });
     }
 
