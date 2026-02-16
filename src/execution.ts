@@ -5,8 +5,8 @@ import { AgentState, LLMVendor, TestCase } from './types';
 import pLimit from 'p-limit';
 import { AGENT_NODES } from "./constants";
 import {
-    GEMINI_EXTRACTOR_KEY,
-    GEMINI_EXTRACTOR_MODEL,
+    GEMINI_ARCHITECT_KEY,
+    GEMINI_ARCHITECT_MODEL,
     PERSONA_DIR,
     GEMINI_AUTO_AGENT_KEY,
     GEMINI_AUTO_AGENT_MODEL,
@@ -20,8 +20,6 @@ import { GraphInstance } from './Services/GraphService/GraphInstance';
 
 const MAX_CONCURRENT_WORKERS = 2;
 TerminalLogger.initialize();
-const executionId = CommonHelper.generateUUID();
-console.log(`[🧵🧵🧵] >> Execution ID: ${executionId}`);
 
 const buildExtractionWorkflow = (architect: Architect) => {
     const graph = new GraphInstance();
@@ -79,15 +77,18 @@ const buildAutomationWorkflow = (autoBot: AutoBot) => {
     return graph;
 };
 
-async function testExecuting(file: string) {
+async function singleThreadRun(file: string) {
+    const sessionId = CommonHelper.generateUUID();
+    console.log(`[🧵🧵🧵] >> Executing Session ID: ${sessionId}`);
+
     const testName = file.replace('.md', '');
     console.log(`[🧵🧵🧵] >> ⚡ Starting processing for: ${file}`);
     
     // INIT AGENT
     const architect = new Architect({
         vendor: LLMVendor.GEMINI,
-        apiKey: GEMINI_EXTRACTOR_KEY as any,
-        model: GEMINI_EXTRACTOR_MODEL,
+        apiKey: GEMINI_ARCHITECT_KEY as any,
+        model: GEMINI_ARCHITECT_MODEL,
         personaTemplatePath: `${PERSONA_DIR}/architect_persona.njk`,
         additionalContexts: [
             `${SKILLS_DIR}/playwright-cli/SKILL.njk`,
@@ -97,15 +98,22 @@ async function testExecuting(file: string) {
         ],
     });
 
-    const autoBot = new AutoBot({
-        vendor: LLMVendor.GEMINI,
-        apiKey: GEMINI_AUTO_AGENT_KEY as any,
-        model: GEMINI_AUTO_AGENT_MODEL,
-        personaTemplatePath: `${PERSONA_DIR}/autobot_persona.njk`,
-        additionalContexts: [
-            `${SKILLS_DIR}/playwright-cli/SKILL.njk`
-        ],
-    });
+    const autoBot = new AutoBot(
+        {
+            vendor: LLMVendor.GEMINI,
+            apiKey: GEMINI_AUTO_AGENT_KEY as any,
+            model: GEMINI_AUTO_AGENT_MODEL,
+            personaTemplatePath: `${PERSONA_DIR}/autobot_persona.njk`,
+            additionalContexts: [
+                `${SKILLS_DIR}/playwright-cli/SKILL.njk`
+            ]
+        },
+        {
+            sessionId: sessionId,
+            isHeaded: true,
+            recordVideo: true,
+        }
+    );
 
     const extractionWorkflow = buildExtractionWorkflow(architect);
     const automationWorkflow = buildAutomationWorkflow(autoBot);
@@ -125,7 +133,7 @@ async function testExecuting(file: string) {
                 thread_id
             )
             listTestCase = response.architect_extractedTestcases as [TestCase];
-            console.log(`[${architect.agentId}][🚁] >> ✅ Loaded successfully:\n${JSON.stringify(listTestCase, null, 2)}`);
+            console.log(`[${architect.agentId}][🚁] >> ✅ Test cases Loaded successfully:\n${JSON.stringify(listTestCase, null, 2)}`);
 
             // DELAY to Cool down after the heavy "Parse" operation
             await CommonHelper.sleep(5000);
@@ -140,10 +148,9 @@ async function testExecuting(file: string) {
 
         for (let testCase of listTestCase!) {
             const reportData = {
-                executionId: executionId,
+                sessionId: sessionId,
                 testFile: file,
                 testTitle: testCase!.title,
-                testGoal: testCase!.goal,
                 testStep: testCase!.steps,
                 executionLogs: [...autoBot.actionLogs],
                 timestamp: new Date().toISOString()
@@ -169,7 +176,7 @@ async function testExecuting(file: string) {
             } catch (err) {
                 console.error(`[${autoBot.agentId}][${file}] >> Error in case "${testCase!.title}"`, err);
             } finally {
-                await autoBot.stopBrowser();
+                await autoBot.stopBrowser(testCase!.title);
                 await autoBot.extractLog(testName, reportData);
                 autoBot.actionLogs = [];
             }
@@ -186,7 +193,7 @@ async function executions() {
     const limit = pLimit(MAX_CONCURRENT_WORKERS);
 
     try {
-        const tasks = files.map(file => limit(() => testExecuting(file)));
+        const tasks = files.map(file => limit(() => singleThreadRun(file)));
         await Promise.all(tasks);
         console.log("[🧵🧵🧵] >> ✅ All workers finished execution.");
     } catch (err) {

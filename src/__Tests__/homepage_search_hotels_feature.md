@@ -5,7 +5,6 @@
 1. Go to "https://www.agoda.com/"
 
 ### 🛬 Teardowns 🛬
-1. Wait for 10s before close the browser
 
 ---
 

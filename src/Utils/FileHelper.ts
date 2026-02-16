@@ -36,4 +36,11 @@ export class FileHelper {
         return fs.existsSync(input) && fs.lstatSync(input).isFile();
     }
 
+    static createDirectory(dirPath: string): void {
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        }
+    }
+
+
 }

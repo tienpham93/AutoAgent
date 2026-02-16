@@ -1,4 +1,4 @@
-import { Annotation, AnnotationRoot, LastValue, MessagesAnnotation } from "@langchain/langgraph";
+import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
 
 export type GeminiClient = {
     apiKey: string;
@@ -9,7 +9,6 @@ export type GeminiClient = {
 
 export type TestCase = {
     title: string;
-    goal: string;
     steps: Steps[];
 };
 
@@ -114,10 +113,10 @@ export interface EvaluationRecord {
     timestamp: string;
     execution_id: string;
     test_run_id: string;
-    test_details: { 
-        test_name: string; 
-        test_goal: string; 
-        steps: Step[] 
+    test_details: {
+        test_name: string;
+        test_goal: string;
+        steps: Step[]
     };
     final_judgement: string;
     final_result: "pass" | "fail";
@@ -158,3 +157,9 @@ export const AgentStateAnnotationSchema = Annotation.Root({
 });
 
 export type AgentState = typeof AgentStateAnnotationSchema.State;
+
+export type CliConfig = {
+    sessionId: string;
+    isHeaded?: boolean;
+    recordVideo?: boolean
+}

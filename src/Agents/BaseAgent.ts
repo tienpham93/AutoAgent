@@ -25,7 +25,6 @@ export abstract class BaseAgent {
         };
         this.apiKey = config.apiKey;
         this.initializeVendor();
-
         this.systemPrompt = new SystemMessage(this.buildSystemPrompt());
     }
 
@@ -64,16 +63,17 @@ export abstract class BaseAgent {
 
     private buildSystemPrompt(): string {
         const personaTemplate = FileHelper.retrieveNjkTemplate(this.config.personaTemplatePath!);
+        console.log(`[${this.agentId}][🦸‍♂️] >> 📚 Loading persona: ${this.config.personaTemplatePath}`);
 
         let additionalContextsRendered = [];
         for (let context of this.config.additionalContexts!) {
+            console.log(`[${this.agentId}][🦸‍♂️] >> 📚 Loading additional context: ${context}`);
             // Check if additionalContexts is file path string or raw string
             const contextContent = FileHelper.isFilePath(context)
                 ? FileHelper.retrieveNjkTemplate(context)
                 : context;
             additionalContextsRendered.push(contextContent);
         }
-
         return nunjucks.renderString(personaTemplate, {
             AdditionalContexts: additionalContextsRendered.join("\n\n"),
         });

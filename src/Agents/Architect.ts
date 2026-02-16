@@ -6,7 +6,7 @@ export class Architect extends BaseAgent {
 
     constructor(config: AgentConfig) {
         super(config);
-        this.agentId = `Extractor_${CommonHelper.generateUUID()}`;
+        this.agentId = `Architect_${CommonHelper.generateUUID()}`;
     }
 
     public async extractionNode(state: AgentState): Promise<any> {
@@ -37,7 +37,7 @@ export class Architect extends BaseAgent {
 
         return {
             ...state,
-            extractor_extractedTestcases: parsedResult
+            architect_extractedTestcases: parsedResult
         };
     }
 }

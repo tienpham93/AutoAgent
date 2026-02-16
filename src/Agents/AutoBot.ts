@@ -1,8 +1,8 @@
-import { Browser, Page, BrowserContext } from "playwright";
+import { Page } from "playwright";
 import { BaseAgent } from "./BaseAgent";
-import { AgentConfig, AgentState } from "../types";
+import { AgentConfig, AgentState, CliConfig } from "../types";
 import { FileHelper } from "../Utils/FileHelper";
-import { RULES_DIR } from "../settings";
+import { PROMPTS_DIR, RULES_DIR } from "../settings";
 import { CommonHelper } from "../Utils/CommonHelper";
 import { execSync } from "child_process";
 
@@ -14,34 +14,43 @@ export class AutoBot extends BaseAgent {
     // Reporting & Debugging
     public actionLogs: string[] = [];
     public testOutputDir: string = '';
-    public debugDir: string = 'src/Debug/Elements/';
-    private sessionId: string;
 
-    constructor(config: AgentConfig) {
+    // CLI options
+    private sessionId: string;
+    private isHeaded: boolean;
+    private recordVideo: boolean;
+
+    constructor(config: AgentConfig, cliConfig: CliConfig) {
         super(config);
-        this.sessionId = `session_${CommonHelper.generateUUID()}`;
         this.agentId = `AutoBot_${CommonHelper.generateUUID()}`;
+
+        this.sessionId = cliConfig.sessionId;
+        this.isHeaded = cliConfig.isHeaded || false;
+        this.recordVideo = cliConfig.recordVideo || false;
     }
 
     /**
      * Manage cli executions by session ID to every command
      */
-    private runCli(command: string): string {
+    private async runCli(command: string): Promise<string> {
         try {
-            const fullCommand = `playwright-cli -s=${this.sessionId} ${command}`;
+            // Load options
+            const sessionId = this.sessionId ? `-s=${this.sessionId}` : '';
+            const fullCommand = `playwright-cli ${sessionId} ${command}`;
             const output = execSync(fullCommand, { encoding: 'utf-8', stdio: 'pipe' });
             return output;
         } catch (error: any) {
-            throw new Error(`CLI Error: ${error.stderr || error.message}`);
+            console.log(`[${this.agentId}][🤖] >> ☠️ CLI Command Error: ${error.message}`);
+            throw error;
         }
     }
 
-    private retrieveContents(templatePaths: string[]): any {
+    private async retrieveContents(templatePaths: string[]): Promise<any> {
         const contents: string[] = [];
         try {
             for (const path of templatePaths) {
                 console.log(`[${this.agentId}][🤖] >> Retrieving contents from: ${path}`);
-                const templateContent = this.buildPrompt(path, {});
+                const templateContent = this.buildPrompt(`${PROMPTS_DIR}${path}`, {});
                 contents.push(templateContent);
             }
             return contents;
@@ -49,12 +58,14 @@ export class AutoBot extends BaseAgent {
             console.error(`[${this.agentId}][🤖] >> ☠️ Error reading template: ${error}`);
             return null;
         }
-    }        
+    }
 
     public async generatorNode(state: AgentState): Promise<any> {
-        const pageSnapshot = await this.waitForUIStability(10000, state);
-        const pageElements = pageSnapshot?.elementTree;
-        const base64Image = pageSnapshot?.screenshot;
+        const threadId = state?.threadId || 'unknown';
+        const fileId = `${threadId}_${Date.now()}`;
+
+        const pageElements = await this.getElementsTree(fileId);
+        const base64Image = await this.getPageScreenshot(fileId);
 
         const playwrightSpecificSkills = await this.retrieveContents(state.pwSpecificSkillsPaths);
         const pageContexts = await this.retrieveContents(state.pageContextPaths);
@@ -104,14 +115,17 @@ export class AutoBot extends BaseAgent {
     public async executorNode(state: AgentState): Promise<any> {
         const lastMessage = state.messages[state.messages.length - 1];
         const commands = this.extractCode(lastMessage.content.toString());
+        const step = state.step;
+        const notes = state.notes?.join(' | ') || 'N/A';
 
         try {
             for (let cmd of commands) {
                 // Remove 'playwright-cli' prefix if existing
                 const cleanCmd = cmd.replace(/^playwright-cli\s+/g, '').trim();
-
-                console.log(`[${this.agentId}] >> 🦾 Executing CLI: ${cleanCmd}`);
-                this.runCli(cleanCmd);
+                console.log(`[${this.agentId}][🤖] >> 🦾 Executing step: "${step}"`);
+                console.log(`[${this.agentId}][🤖] >> 📌 Step Note: "${notes}"`);
+                console.log(`[${this.agentId}][🤖] >> 🎭 CLI: ${cmd}`);
+                await this.runCli(cleanCmd);
             }
 
             return {
@@ -129,34 +143,34 @@ export class AutoBot extends BaseAgent {
         }
     }
 
-    public async chatNode(state: AgentState): Promise<any> {
-        const pageSnapshot = await this.waitForUIStability(20000, state);
-        const pageElements = pageSnapshot?.elementTree;
+    // public async chatNode(state: AgentState): Promise<any> {
+    //     const pageSnapshot = await this.waitForUIStability(20000, state);
+    //     const pageElements = pageSnapshot?.elementTree;
 
-        let fullPrompt = this.buildPrompt(
-            `${RULES_DIR}/build_dry_run_prompt.njk`,
-            {
-                userInput: state.step,
-                elementsTree: pageElements,
-            }
-        )
+    //     let fullPrompt = this.buildPrompt(
+    //         `${RULES_DIR}/build_dry_run_prompt.njk`,
+    //         {
+    //             userInput: state.step,
+    //             elementsTree: pageElements,
+    //         }
+    //     )
 
-        const userMessage = await this.buildMessageContent(
-            [
-                {
-                    type: "text",
-                    text: fullPrompt
-                }
-            ]
-        )
+    //     const userMessage = await this.buildMessageContent(
+    //         [
+    //             {
+    //                 type: "text",
+    //                 text: fullPrompt
+    //             }
+    //         ]
+    //     )
 
-        // Combine History + New Input temporarily for this call
-        const messagesForModel = [...state.messages, userMessage];
-        const response = await this.sendToLLM({ ...state, messages: messagesForModel });
-        return {
-            messages: [...state.messages, response],
-        };
-    }
+    //     // Combine History + New Input temporarily for this call
+    //     const messagesForModel = [...state.messages, userMessage];
+    //     const response = await this.sendToLLM({ ...state, messages: messagesForModel });
+    //     return {
+    //         messages: [...state.messages, response],
+    //     };
+    // }
 
     public async extractLog(testName: string, data: any): Promise<void> {
         try {
@@ -168,67 +182,60 @@ export class AutoBot extends BaseAgent {
     }
 
     public async startBrowser(testName?: string): Promise<void> {
+        const headedOpt = this.isHeaded ? '--headed' : '';
+
         const timestamp = new Date().getTime();
-        this.testOutputDir = `output/${testName || 'test'}_${timestamp}/`;
+        this.testOutputDir = testName ? `output/${testName}_${timestamp}/` : `output/${timestamp}/`;
 
         console.log(`[${this.agentId}] >> 🚀 Initializing CLI Session...`);
-        this.runCli(`open about:blank --headed`);
+        await this.runCli(`${headedOpt} open about:blank`);
+        if (this.recordVideo) {
+            console.log(`[${this.agentId}][🤖] >> 🎬 Start recording: ${this.testOutputDir}${testName}.webm`)
+            await this.runCli(`video-start`)
+        }
     }
 
-    public async stopBrowser() {
-        console.log(`[${this.agentId}] >> 🛑 Closing CLI Session...`);
-        this.runCli(`close`);
+    public async stopBrowser(testName?: string) {
+        console.log(`[${this.agentId}][🤖] >> 🛑 Closing CLI Session...`);
+        if (this.recordVideo) {
+            console.log(`[${this.agentId}][🤖] >> 🎬 Stop and Saving video record: ${this.testOutputDir}${testName}.webm`)
+            await this.runCli(`video-stop --filename=${this.testOutputDir}${testName}.webm`);
+            await CommonHelper.sleep(5000);
+        }
+        await this.runCli(`close`);
     }
 
-    public async getPageScreenshot(filename: string): Promise<string> {
+    public async getElementsTree(filename: string): Promise<string> {
         try {
-            const screenshotPath = `${this.testOutputDir}screenshots/${filename}.png`;
-            this.runCli(`screenshot --filename=${screenshotPath}`);
-            console.log(`[${this.agentId}][🤖] >> 📸 Screenshot saved: ${screenshotPath}`);
-            return FileHelper.readAsBase64(screenshotPath);
+            const snapshotPath = `${this.testOutputDir}snapshots/`;
+            const snapshot = `${snapshotPath}${filename}.png`;
+            if (!FileHelper.isFilePath(snapshotPath)) {
+                FileHelper.createDirectory(snapshotPath);
+            }
+            await this.runCli(`snapshot --filename=${snapshot}.yml`);
+            console.log(`[${this.agentId}][🤖] >> 🌳 Elements tree snapshot saved: ${snapshot}`);
+            const snapshotContent = FileHelper.readFile(`${snapshot}.yml`);
+            return snapshotContent;
         } catch (error) {
-            console.error(`[${this.agentId}][🤖] >> ☠️ Error taking screenshot: ${error}`);
+            console.error(`[${this.agentId}][🤖] >> ☠️ Error taking Elements tree snapshot: ${error}`);
             return "";
         }
     }
 
-    public async getElementsTree(isDebug = false): Promise<string> {
+    public async getPageScreenshot(filename: string): Promise<string> {
         try {
-            const snapshot = this.runCli(`snapshot`);
-            if (isDebug) {
-                const timestamp = FileHelper.getTimestamp();
-                console.log(`[${this.agentId}][🤖] >> 🌳 Saving elements tree snapshot: elements_tree_${timestamp}.json`);
-                FileHelper.writeFile(this.debugDir, `elements_tree_${timestamp}.yml`, snapshot);
+            const screenshotPath = `${this.testOutputDir}screenshots/`;
+            const screenshot = `${screenshotPath}${filename}.png`;
+            if (!FileHelper.isFilePath(screenshotPath)) {
+                FileHelper.createDirectory(screenshotPath);
             }
-
-            return snapshot;
-        } catch (e) {
-            return "Error getting snapshot";
-        }
-    }
-
-    private async waitForUIStability(timeout = 15000, state?: AgentState): Promise<any> {
-        const startTime = Date.now();
-        const threadId = state?.threadId || 'unknown';
-
-        let previousTree = await this.getElementsTree();
-
-        while (Date.now() - startTime < timeout) {
-            await CommonHelper.sleep(1000);
-            const currentTree = await this.getElementsTree();
-
-            if (previousTree === currentTree) {
-                return {
-                    elementTree: currentTree,
-                    screenshot: await this.getPageScreenshot(`${threadId}_${Date.now()}`)
-                };
-            }
-            previousTree = currentTree;
-        }
-
-        return {
-            elementTree: previousTree,
-            screenshot: await this.getPageScreenshot(`${threadId}_${Date.now()}`)
+            await this.runCli(`screenshot --filename=${screenshot}`);
+            console.log(`[${this.agentId}][🤖] >> 📸 Screenshot saved: ${screenshot}.png`);
+            const base64Image = FileHelper.readAsBase64(screenshot);
+            return base64Image;
+        } catch (error) {
+            console.error(`[${this.agentId}][🤖] >> ☠️ Error taking screenshot: ${error}`);
+            return "";
         }
     }
 
