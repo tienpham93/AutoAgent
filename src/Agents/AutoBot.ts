@@ -32,7 +32,7 @@ export class AutoBot extends BaseAgent {
     /**
      * Manage cli executions by session ID to every command
      */
-    private async runCli(command: string): Promise<string> {
+    private runCli(command: string): string {
         try {
             // Load options
             const sessionId = this.sessionId ? `-s=${this.sessionId}` : '';
@@ -125,7 +125,7 @@ export class AutoBot extends BaseAgent {
                 console.log(`[${this.agentId}][🤖] >> 🦾 Executing step: "${step}"`);
                 console.log(`[${this.agentId}][🤖] >> 📌 Step Note: "${notes}"`);
                 console.log(`[${this.agentId}][🤖] >> 🎭 CLI: ${cmd}`);
-                await this.runCli(cleanCmd);
+                this.runCli(cleanCmd);
             }
 
             return {
@@ -143,35 +143,6 @@ export class AutoBot extends BaseAgent {
         }
     }
 
-    // public async chatNode(state: AgentState): Promise<any> {
-    //     const pageSnapshot = await this.waitForUIStability(20000, state);
-    //     const pageElements = pageSnapshot?.elementTree;
-
-    //     let fullPrompt = this.buildPrompt(
-    //         `${RULES_DIR}/build_dry_run_prompt.njk`,
-    //         {
-    //             userInput: state.step,
-    //             elementsTree: pageElements,
-    //         }
-    //     )
-
-    //     const userMessage = await this.buildMessageContent(
-    //         [
-    //             {
-    //                 type: "text",
-    //                 text: fullPrompt
-    //             }
-    //         ]
-    //     )
-
-    //     // Combine History + New Input temporarily for this call
-    //     const messagesForModel = [...state.messages, userMessage];
-    //     const response = await this.sendToLLM({ ...state, messages: messagesForModel });
-    //     return {
-    //         messages: [...state.messages, response],
-    //     };
-    // }
-
     public async extractLog(testName: string, data: any): Promise<void> {
         try {
             FileHelper.writeFile(this.testOutputDir, `${testName}.json`, data);
@@ -184,25 +155,31 @@ export class AutoBot extends BaseAgent {
     public async startBrowser(testName?: string): Promise<void> {
         const headedOpt = this.isHeaded ? '--headed' : '';
 
-        const timestamp = new Date().getTime();
+        const timestamp = CommonHelper.getCurrentTimestamp();
         this.testOutputDir = testName ? `output/${testName}_${timestamp}/` : `output/${timestamp}/`;
 
-        console.log(`[${this.agentId}] >> 🚀 Initializing CLI Session...`);
-        await this.runCli(`${headedOpt} open about:blank`);
-        if (this.recordVideo) {
-            console.log(`[${this.agentId}][🤖] >> 🎬 Start recording: ${this.testOutputDir}${testName}.webm`)
-            await this.runCli(`video-start`)
-        }
+        console.log(`[${this.agentId}][🤖] >> 🚀 Initializing CLI Session...`);
+        this.runCli(`${headedOpt} open about:blank`);
+
+        console.log(`[${this.agentId}][🤖] >> 🎬 Start recording: ${this.testOutputDir}${testName}_${CommonHelper.getCurrentTimestamp()}.webm`);
+        this.runCli(`video-start`);
     }
 
-    public async stopBrowser(testName?: string) {
+    public async stopRecording(testName?: string) {
+        console.log(`[${this.agentId}][🤖] >> 🎬 Stop and Saving video record: ${this.testOutputDir}${testName}_${CommonHelper.getCurrentTimestamp()}.webm`)
+        this.runCli(`video-stop --filename=${this.testOutputDir}${testName}.webm`);
+        await CommonHelper.sleep(5000);
+    }
+
+    public async stopBrowser() {
         console.log(`[${this.agentId}][🤖] >> 🛑 Closing CLI Session...`);
-        if (this.recordVideo) {
-            console.log(`[${this.agentId}][🤖] >> 🎬 Stop and Saving video record: ${this.testOutputDir}${testName}.webm`)
-            await this.runCli(`video-stop --filename=${this.testOutputDir}${testName}.webm`);
-            await CommonHelper.sleep(5000);
-        }
-        await this.runCli(`close`);
+        this.runCli(`close`);
+    }
+    
+
+    public async closeAllsessions() {
+        console.log(`[${this.agentId}][🤖] >> 🧹 Closing all CLI Sessions...`);
+        this.runCli(`close-all`);
     }
 
     public async getElementsTree(filename: string): Promise<string> {
@@ -212,7 +189,7 @@ export class AutoBot extends BaseAgent {
             if (!FileHelper.isFilePath(snapshotPath)) {
                 FileHelper.createDirectory(snapshotPath);
             }
-            await this.runCli(`snapshot --filename=${snapshot}.yml`);
+            this.runCli(`snapshot --filename=${snapshot}.yml`);
             console.log(`[${this.agentId}][🤖] >> 🌳 Elements tree snapshot saved: ${snapshot}`);
             const snapshotContent = FileHelper.readFile(`${snapshot}.yml`);
             return snapshotContent;
@@ -229,7 +206,8 @@ export class AutoBot extends BaseAgent {
             if (!FileHelper.isFilePath(screenshotPath)) {
                 FileHelper.createDirectory(screenshotPath);
             }
-            await this.runCli(`screenshot --filename=${screenshot}`);
+            
+            this.runCli(`screenshot --filename=${screenshot}`);
             console.log(`[${this.agentId}][🤖] >> 📸 Screenshot saved: ${screenshot}.png`);
             const base64Image = FileHelper.readAsBase64(screenshot);
             return base64Image;

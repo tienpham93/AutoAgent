@@ -1,164 +1,59 @@
-🏠 HOMEPAGE CONTEXT
+🏠 HOMEPAGE CONTEXT (DYNAMIC IDENTIFICATION)
 ===============
-📋 DESCRIPTION:
-The landing page of the Online Travel Agency (OTA) application. It serves as the primary entry point for users to search for accommodations, flights, and other travel services. The page features a central search widget, promotional carousels, and destination recommendations.
+📋 DESCRIPTION: The Agoda landing page. Use the YAML snapshot to find the current `ref` ID based on the following stable attributes.
 ===============
-🏗️ STRUCTURE:
-The page is divided into vertical sections:
-    📌 Header: Authentication, Language, Currency.
-    📌 Hero Section: Contains the Service Tabs (Hotels, Flights, etc.) and the Main Search Form.
-    📌 Promotional Content: Dynamic carousels for Top Destinations, Accommodation Promotions, and Flagship Properties.
-    📌 Footer: Legal, links, and SEO content.
+🗺️ PAGE COMPONENTS:
+    🧩 SEARCH HOTEL COMPONENTS:
+        1️⃣. Search Input field:
+            🔑 Keywords: destination input, property name, search bar
+            🆔 Identification: Look for a `combobox` with the name `"Enter a destination or property"`.
+            👨‍🏫 Action: `playwright-cli fill <found_ref> "City Name"`
+        2️⃣. Check-in/Check-out Buttons:
+            🔑 Keywords: check in box, date selector
+            🆔 Identification: Look for `button` elements whose names start with `"Check-in"` or `"Check-out"`. 
+            👨‍🏫 Note: These labels change dynamically (e.g., "Check-in 1 Mar 2026"). Use partial string matching in the YAML.
+        3️⃣. Date Picker Dialog:
+            🔑 Keywords: calendar, date picker dialog
+            🆔 Identification: Look for a `dialog` with the name `"Check Out Date Picker"`.
+            🆔 Grid/Dates: Inside the dialog, find the `grid`. Target dates are `button` or `gridcell` elements with the name format `"Day Month Date Year"` (e.g., "Mon Mar 02 2026").
+            🆔 Navigation: Find the `button` with name `"Next Month"` within the dialog to paginate.
+        4️⃣. Occupancy Box:
+            🔑 Keywords: guests, rooms, adults selector
+            🆔 Identification: Look for a `button` whose name contains `"Guests and rooms"`.
+        5️⃣. Search Button:
+            🔑 Keywords: SEARCH button, submit
+            🆔 Identification: Look for a `button` with the exact name `"SEARCH"`. (Usually located at the end of the `tabpanel`).
+    🧩 PROMOTIONAL OVERLAYS (BLOCKERS):
+        6️⃣. App Download Banner:
+            🆔 Identification: Look for a `button` with the name `"Close"` inside a section containing `"Save 10% on your 1st app booking"`.
+            👨‍🏫 Strategy: This banner often obscures the Search button. If "SEARCH" is not clickable, find this "Close" ref and click it first.
+    🧩 SERVICE TABS:
+        7️⃣. Tabs:
+            🆔 Identification: `tab` role with names `"Hotels"`, `"Flights"`, `"Activities"`.
+            🆔 Status Check: If the YAML shows `[selected]` on the tab, it is already active.
 ===============
-🧩 SEARCH HOTEL COMPONENTS:
-1️⃣. Search Input field:
-    🔑 Keywords in testcase: search field, search bar, Enter a destination or property, destination input
-    🗺️ Locator references: [data-selenium="textInput"]
-    ⚙️ Function: To input a specific destination, hotel name, landmark, or address to query availability.
-    👨‍🏫 Interaction and Keynotes:
-        📌 Click Interaction: Clicking the empty field opens the Auto-complete Panel ([data-selenium="autocompletePanel"]) displaying "Top Destinations" or recent searches.
-        📌 Typing Interaction: Entering text triggers a network request to fetch suggestions. The Auto-complete panel updates to show a list of matches ([data-testid="autosuggest-item"]).
-        📌 Selection Requirement: Users must select an option from the Auto-complete Panel (by clicking a [data-testid="autosuggest-item"]) to populate the field validly.
-        📌 Blocking Behavior: While the Auto-complete Panel is open, it may visually obscure other elements. Select an item or click outside to close it before attempting to interact with Date or Occupancy fields.
-
-2️⃣. Checkin and checkout Box:
-    🔑 Keywords in test case: check in, check out, date, calendar, duration
-    🗺️ Locator references: [data-element-name="check-in-box"], [data-element-name="check-out-box"] (Legacy alias: [data-selenium="checkInBox"])
-    ⚙️ Function: triggers the display of the Date Picker component. Displays the currently selected dates in dd/mmm/yyyy format.
-    👨‍🏫 Interaction and Keynotes:
-        📌 Sequential Logic: Clicking the Check-in box opens the calendar. Once a check-in date is selected, the calendar automatically highlights the range and prompts for a check-out date.
-        📌 State validation: Ensure the element text reflects the chosen dates after selection.
-
-3️⃣. Checkin or checkout date picker:
-    🔑 Keywords in test case: date picker, calendar, next month, previous month, select date
-    🗺️ Locator references:
-        📌 Container: [data-selenium="rangePickerCheckIn"] or [data-selenium="rangePickerCheckOut"]
-        📌 Navigation: [data-selenium="calendar-next-month-button"], [data-selenium="calendar-previous-month-button"]
-        📌 Day Cell: [data-selenium="calendar-day-{date}"] (Format often varies, generally requires text matching or aria-label).
-    👨‍🏫 Interaction and Keynotes:
-        📌 Visibility: Only visible after clicking the Check-in/Check-out box.
-        📌 Date Logic: The test script must calculate dates relative to the current system date (e.g., "Next Friday").
-        📌 Pagination: The view defaults to 2 months. If the target date is outside this range, the script must loop click the Next Month Button until the target month is visible.
-        📌 Blocking: This is a modal-like popover. It must be closed (by selecting dates or clicking outside) before interacting with the Occupancy Box or Search Button.
-
-4️⃣. Occupancy Box:
-    🔑 Keywords in test case: guests, rooms, adults, children, people, family size
-    🗺️ Locator references: [data-selenium="occupancyBox"]
-    ⚙️ Function: Displays the current count of rooms and guests. Opens a popover to modify these values.
-    👨‍🏫 Interaction and Keynotes:
-        📌 Popover: Clicking opens a popover containing counters for "Room", "Adult", and "Children".
-        📌 Counters: Inside the popover, use generic selectors or aria-labels (e.g., aria-label="Increase adults", aria-label="Decrease adults") to adjust numbers.
-        📌 Children Logic: Adding a child often triggers an additional dropdown to specify the child's age.
-        📌 Closing: Click outside the popover or click the specific "Done" button (if present) to apply changes.
-
-5️⃣. Search Button:
-    🔑 Keywords in test case: search, find, submit query
-    🗺️ Locator references: [data-element-name="search-button"]
-    ⚙️ Function: Submits the search form data to the backend and navigates to the Search Results Page (SRP).
-    👨‍🏫 Interaction and Keynotes:
-        📌 Prerequisite: This button functions correctly only if Destination, Dates, and Occupancy are valid.
-        📌 Navigation: Clicking this triggers a page load. Automation scripts should await the load event or the appearance of a result element on the next page.
-===============
-🧩 SEARCH FLIGHTS COMPONENTS:
-1️⃣. Service Navigation Tabs:
-    🔑 Keywords in testcase: flights tab, switch to flights
-    🗺️ Locator references: role=tab, name="Flights"
-    ⚙️ Function: Context switcher that changes the Hero Section from "Hotels" mode to "Flights" mode.
-    👨‍🏫 Interaction and Keynotes:
-        📌 Activation: Must be clicked to reveal flight-specific inputs (Origin/Dest). Verify `aria-selected="true"`.
-
-2️⃣. Trip Type Toggles:
-    🔑 Keywords in testcase: one-way, round-trip, return ticket
-    🗺️ Locator references: role=button, name="One-way" | name="Round-trip"
-    ⚙️ Function: Determines if the search requires a Return Date.
-    👨‍🏫 Interaction and Keynotes:
-        📌 State: Use `aria-pressed="true"` to verify the active state.
-        📌 Impact: Selecting "Round-trip" enables the Return Date input.
-
-3️⃣. Origin and Destination Inputs:
-    🔑 Keywords in testcase: flying from, flying to, departure airport, arrival airport
-    🗺️ Locator references: 
-        📌 Origin: role=combobox, name="Flying from"
-        📌 Destination: role=combobox, name="Flying to"
-    ⚙️ Function: Inputs for selecting airports/cities.
-    👨‍🏫 Interaction and Keynotes:
-        📌 Autocomplete: Typing text triggers a `listbox` popup.
-        📌 Selection: Users must click a result from the listbox (e.g., `role=option`). Options include "All airports" (Generic) or specific airport codes (e.g., "SGN").
-        📌 Chain Reaction: Selecting the "Flying to" destination often automatically opens the Departure Date Picker.
-
-4️⃣. Flight Date Picker:
-    🔑 Keywords in testcase: flight date, departure date
-    🗺️ Locator references: role=combobox, name=/Departure Date picker/
-    ⚙️ Function: Calendar widget specifically for flight dates.
-    👨‍🏫 Interaction and Keynotes:
-        📌 Grid: Similar to Hotel calendar (role=gridcell buttons).
-        📌 Disabled State: Past dates are disabled (`disabled=true`).
-        📌 Selection: Clicking a date closes the popover (for One-way) or moves focus to Return Date.
-
-5️⃣. Flight Occupancy & Class:
-    🔑 Keywords in testcase: passengers, cabin class, economy, business class, add child
-    🗺️ Locator references: role=button, name="Passengers and cabin class"
-    ⚙️ Function: Opens a popover to configure passenger mix and seat class.
-    👨‍🏫 Interaction and Keynotes:
-        📌 Counters: Specific `role=button` elements for "Plus/Minus Adult", "Plus/Minus Children", "Plus/Minus Infants".
-        📌 Class Selection: Radio-style buttons for "Economy", "Premium economy", "Business", "First".
-        📌 Verification: Verify class selection using `aria-pressed="true"`.
-
-6️⃣. Flight Search Button:
-    🔑 Keywords in testcase: search flights, find flights
-    🗺️ Locator references: role=button, name="SEARCH FLIGHTS"
-    ⚙️ Function: Submits flight criteria and navigates to Flight SRP.
-
-===============
-🧩 OTHER COMPONENTS:
-6️⃣. Top Destinations Carousel
-    🔑 Keywords in test case: popular cities, top destinations, carousel, slide
-    🗺️ Locator references:
-        📌 Section: [data-element-name="top-destination-cities"]
-        📌 Card Container: [data-item-id="carousel-card-container"]
-        📌 Next Arrow: [aria-label="Next destination"]
-        📌 Previous Arrow: [aria-label="Previous"]
-        📌 City Name: [data-testid="destination-card-city-name"]
-        📌 City Image: [data-element-name="top-destination-city-image"]
-        📌 Accommodation Count: xpath=//*[contains(text(), '<destination_name>')]/following-sibling::span
-    ⚙️ Function: Specific widget displaying popular cities with images and accommodation counts.
-    👨‍🏫 Interaction and Keynotes:
-        📌 Motion: The slider hides future cards off-screen. Clicking the Next Arrow performs a sliding animation to reveal the next batch (usually 3 or 4 cards).
-        📌 Navigation Logic:
-        Initially, only the Next Arrow is visible.
-        The Previous Arrow only appears on the screen after the user has clicked "Next" at least once (i.e., when there is content to scroll back to). 
-        Dynamic Locator Usage: To find the accommodation count for a specific city, dynamically replace <destination_name> in the XPath with the target city string.
-
-7️⃣. Accommodation Promotions Carousel:
-    🔑 Keywords in test case: accommodation deals, hotel promos, carousel
-    🗺️ Locator references:
-        📌 Section Container: [data-carousel-section="accommodation"]
-        📌 Card Container (Visible): [data-item-id="carousel-card-container"]
-        📌 Next Arrow: [aria-label="Next Accommodation Promotion"]
-        📌 Previous Arrow: [aria-label="Previous Accommodation Promotion"]
-    ⚙️ Function: Displays promotional cards for hotels/homes.
-    👨‍🏫 Interaction and Keynotes:
-        📌 Motion: Identical to the Top Destinations carousel. It behaves like a slider where hidden cards are revealed by clicking Next.
-        📌 Navigation Logic: The Previous Arrow is initially hidden and only displays after the first interaction with the Next Arrow.
-
-8️⃣. Flights & Activities Promotions Carousel:
-    🔑 Keywords in test case: flight deals, activity promos, flight carousel
-    🗺️ Locator references:
-        📌 Section Container: [data-carousel-section="flights"]
-        📌 Next Arrow: Generic next button within container (or specific aria-label if unique).
-        📌 Previous Arrow: Generic previous button within container.
-    ⚙️ Function: Displays promotional cards for flights and local activities.
-    👨‍🏫 Interaction and Keynotes:
-        📌 Structure: Follows the same card-based slider structure as the Accommodation Promotions section.
-        📌 Motion: Slides horizontally to reveal hidden cards. Supports Next/Previous navigation with the same visibility logic (Previous appears only after sliding forward).
-
-9️⃣. Flagship Properties Carousel ("Properties we think you'll like"):
-    🔑 Keywords in test case: flagship store, recommended properties, suggested hotels
-    🗺️ Locator references:
-        📌 Section Container: [data-carousel-section="flagship-store"]
-        📌 Next Arrow: Generic next button within container [aria-label="Next property"] (inferred from homepage structure).
-        📌 Previous Arrow: Generic previous button within container.
-    ⚙️ Function: Displays specific high-value or recommended property cards.
-    👨‍🏫 Interaction and Keynotes:
-        📌 Structure: Same visual and functional design as the Accommodation Promotions section.
-        📌 Motion: Horizontal slider. Previous button is hidden until the user navigates forward.
+📚 FEW-SHOT EXAMPLES:
+    🌐 Example 1: Select checkout date 4 days after current check-in date.
+        📌 Test steps: "Select checkout date 4 days from current check-in".
+        📌 Current State (from Snapshot): `- button "Check-in 26 Feb 2026 Thursday" [ref=e146]`
+        📌 Agent Thinks or Actions:
+            👉 Current check-in is Feb 26. 4 days later is March 2, 2026.
+            👉 `playwright-cli click e146` (to open calendar).
+        📌 New State (from Snapshot): `- button "Mon Mar 02 2026 Price is 3,092K VND" [ref=e1521]`
+        📌 Agent Thinks or Actions:
+            👉 `playwright-cli click e1521`
+    🌐 Example 2: Selecting a destination from the autocomplete list.
+        📌 Test steps: "Search for hotels in Hong Kong".
+        📌 Current State (from Snapshot): `- combobox "Enter a destination..." [ref=e144]`
+        📌 Agent Thinks or Actions:
+            👉 `playwright-cli fill e144 "Hong Kong"`
+        📌 New State (from Snapshot): `- generic [ref=e180] [cursor=pointer]: Hong Kong, Hong Kong`
+        📌 Agent Thinks or Actions:
+            👉 `playwright-cli click e180`
+    🌐 Example 3: Clear the App Promo blocker
+        📌 Test steps: The "SEARCH" button is obscured by an app download banner.
+        📌 Agent Thinks or Actions:
+            👉 Find Close ref: `button "Close" [ref=e593]` (inside section `e591`)
+            👉 Action: `playwright-cli click e593`
+            👉 Refresh state: `playwright-cli snapshot`
+            👉 Proceed to click `button "SEARCH"` with its new ref.

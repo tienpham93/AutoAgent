@@ -41,6 +41,4 @@ export class FileHelper {
             fs.mkdirSync(dirPath, { recursive: true });
         }
     }
-
-
 }

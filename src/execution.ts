@@ -77,14 +77,7 @@ const buildAutomationWorkflow = (autoBot: AutoBot) => {
     return graph;
 };
 
-async function singleThreadRun(file: string) {
-    const sessionId = CommonHelper.generateUUID();
-    console.log(`[🧵🧵🧵] >> Executing Session ID: ${sessionId}`);
-
-    const testName = file.replace('.md', '');
-    console.log(`[🧵🧵🧵] >> ⚡ Starting processing for: ${file}`);
-    
-    // INIT AGENT
+const initArchitect = () => {
     const architect = new Architect({
         vendor: LLMVendor.GEMINI,
         apiKey: GEMINI_ARCHITECT_KEY as any,
@@ -97,7 +90,10 @@ async function singleThreadRun(file: string) {
             `${RULES_DIR}/extract_test_case_rules.njk`
         ],
     });
+    return architect;
+};
 
+const initAutoBot = (sessionId: string) => {
     const autoBot = new AutoBot(
         {
             vendor: LLMVendor.GEMINI,
@@ -114,18 +110,24 @@ async function singleThreadRun(file: string) {
             recordVideo: true,
         }
     );
+    return autoBot;
+}
 
-    const extractionWorkflow = buildExtractionWorkflow(architect);
-    const automationWorkflow = buildAutomationWorkflow(autoBot);
+async function singleThreadRun(file: string) {
+    const sessionId = CommonHelper.generateUUID();
+    console.log(`[🧵🧵🧵] >> Executing Session ID: ${sessionId}`);
+
+    const testName = file.replace('.md', '');
+    console.log(`[🧵🧵🧵] >> ⚡ Starting processing for: ${file}`);
 
     try {
-        // READ & PARSE
+        // ANAZYING & EXTRACT TEST CASES
+        const architect = initArchitect();
+        const extractionWorkflow = buildExtractionWorkflow(architect);
         const rawMarkdown = FileHelper.readFile(`${TESTS_DIR}/${file}`);
-
         let listTestCase: [TestCase];
         let thread_id = `extraction_${CommonHelper.generateUUID()}`;
         try {
-
             const response = await extractionWorkflow.execute(
                 {
                     architect_rawTestCase: rawMarkdown
@@ -143,10 +145,11 @@ async function singleThreadRun(file: string) {
             return;
         }
 
-        // AUTOMATION
+        // EXECUTE TEST CASES
+        const autoBot = initAutoBot(sessionId);
+        const automationWorkflow = buildAutomationWorkflow(autoBot);
         autoBot.actionLogs = [];
-
-        for (let testCase of listTestCase!) {
+        for (let testCase of listTestCase) {
             const reportData = {
                 sessionId: sessionId,
                 testFile: file,
@@ -172,15 +175,15 @@ async function singleThreadRun(file: string) {
                         thread_id
                     );
                 }
-
             } catch (err) {
                 console.error(`[${autoBot.agentId}][${file}] >> Error in case "${testCase!.title}"`, err);
             } finally {
-                await autoBot.stopBrowser(testCase!.title);
+                await autoBot.stopRecording(testCase!.title);
                 await autoBot.extractLog(testName, reportData);
                 autoBot.actionLogs = [];
             }
-        }
+        };
+        await autoBot.stopBrowser();
         console.log(`[🧵🧵🧵] >> ✅ Worker Finished file: ${file}`);
     } catch (err) {
         console.error(`[🧵🧵🧵] >> ❌ Worker Critical error processing file ${file}:`, err);
@@ -193,7 +196,9 @@ async function executions() {
     const limit = pLimit(MAX_CONCURRENT_WORKERS);
 
     try {
-        const tasks = files.map(file => limit(() => singleThreadRun(file)));
+        const tasks = files.map(file => limit(() => 
+            singleThreadRun(file)
+        ));
         await Promise.all(tasks);
         console.log("[🧵🧵🧵] >> ✅ All workers finished execution.");
     } catch (err) {
