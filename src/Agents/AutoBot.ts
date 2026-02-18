@@ -18,7 +18,6 @@ export class AutoBot extends BaseAgent {
     // CLI options
     private sessionId: string;
     private isHeaded: boolean;
-    private recordVideo: boolean;
 
     constructor(config: AgentConfig, cliConfig: CliConfig) {
         super(config);
@@ -26,7 +25,6 @@ export class AutoBot extends BaseAgent {
 
         this.sessionId = cliConfig.sessionId;
         this.isHeaded = cliConfig.isHeaded || false;
-        this.recordVideo = cliConfig.recordVideo || false;
     }
 
     /**

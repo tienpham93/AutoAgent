@@ -5,7 +5,7 @@ export enum AGENT_NODES {
     START = "start",
     END = "end",
 
-    // Extractor Nodes
+    // Architect Nodes
     EXTRACTION = "extraction",
 
     // AutoAgent Nodes

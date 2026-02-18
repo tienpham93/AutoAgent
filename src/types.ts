@@ -89,7 +89,7 @@ export interface InspectionResult {
     };
     agent_performance_matrix: Array<{
         agent_id: string;
-        role: "AutoBot" | "Extractor";
+        role: "AutoBot" | "Architect";
         assigned_file: string;
         metrics: {
             steps_attempted: number;

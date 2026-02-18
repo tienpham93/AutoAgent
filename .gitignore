@@ -18,3 +18,5 @@ log_inspections.json
 .playwright
 .playwright-cli
 .claude
+full_*.log
+extracted_all_testcase.json

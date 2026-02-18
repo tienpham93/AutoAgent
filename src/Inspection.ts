@@ -2,7 +2,8 @@ import { Inspector } from "./Agents/Inspector";
 import { AGENT_NODES } from "./constants";
 import { GraphInstance } from "./Services/GraphService/GraphInstance";
 import { GEMINI_AUTO_AGENT_KEY, GEMINI_AUTO_AGENT_MODEL, PERSONA_DIR, RULES_DIR } from "./settings";
-import { AgentState, LLMVendor } from "./types";
+import { AgentState, InspectionResult, LLMVendor } from "./types";
+import { FileHelper } from "./Utils/FileHelper";
 
 const buildInspectionWorkflow = (inspector: Inspector) => {
     const graph = new GraphInstance();
@@ -22,7 +23,6 @@ const buildInspectionWorkflow = (inspector: Inspector) => {
 }
 
 async function logInspection() {
-
     // Init Agent
     const inspector = new Inspector({
         vendor: LLMVendor.GEMINI,
@@ -34,26 +34,45 @@ async function logInspection() {
 
     const inspectionWorkflow = buildInspectionWorkflow(inspector);
 
-    console.log(`[${inspector.agentId}][🔍] >> Starting log inspection...`);
-    try {
-        const response = await inspectionWorkflow.execute(
-            {
-                inspector_logFilePath: `full_execution.log`,
-            },
-            `inspection_${Date.now()}`
-        );
+    // Retrieve logs that start with 'full_' and ending with '.log'
+    const allFiles = FileHelper.readDirectory('./');
+    const logFiles = allFiles.filter(file => 
+        file.startsWith('full_') && file.endsWith('.log')
+    );
 
-        const finalRecord = {
-            timestamp: new Date().toISOString(),
-            ...response.inspector_inspectionResult
-        };
+    console.log(`[${inspector.agentId}][🔍] >> Found ${logFiles.length} logs to inspect: ${logFiles.join(', ')}`);
 
-        await inspector.writeInspectionToFile(finalRecord, 'log_inspections.json');
+    const allInspectionResults: InspectionResult[] = [];
 
-    } catch (error) {
-        console.error(`[${inspector.agentId}][🕵️] >> ❌ Log inspection failed:`, error);
+    // Iterate through each log file and run inspection
+    for (const logFile of logFiles) {
+        console.log(`[${inspector.agentId}][🕵️] >> Inspecting: ${logFile}...`);
+        try {
+            const response = await inspectionWorkflow.execute(
+                {
+                    inspector_logFilePath: logFile,
+                },
+                `inspection_${logFile}_${Date.now()}`
+            );
+
+            const record = {
+                logFileName: logFile,
+                timestamp: new Date().toISOString(),
+                ...response.inspector_inspectionResult
+            };
+
+            allInspectionResults.push(record);
+            console.log(`[${inspector.agentId}][✅] >> Finished inspecting ${logFile}`);
+
+        } catch (error) {
+            console.error(`[${inspector.agentId}][❌] >> Failed to inspect ${logFile}:`, error);
+        }
     }
 
+    if (allInspectionResults.length > 0) {
+        await inspector.writeInspectionToFile(allInspectionResults, 'log_inspections.json');
+        console.log(`[${inspector.agentId}][💾] >> All inspections saved to log_inspections.json`);
+    }
 }
 
 logInspection();

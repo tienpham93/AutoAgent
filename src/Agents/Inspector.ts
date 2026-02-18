@@ -75,28 +75,31 @@ export class Inspector extends BaseAgent {
 
     }
 
-    public async writeInspectionToFile(inspection: InspectionResult, targetFilePath: string): Promise<void> {
-        let inspections: any[] = [];
-
-        const directory = path.dirname(targetFilePath);
-
-        if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true });
-
+    public async writeInspectionToFile(inspection: any, targetFilePath: string): Promise<void> {
+        let allInspections: any[] = [];
+    
         if (fs.existsSync(targetFilePath)) {
             try {
                 const raw = fs.readFileSync(targetFilePath, 'utf-8');
-                inspection = JSON.parse(raw);
+                const parsed = JSON.parse(raw);
+                // Ensure the existing data is an array
+                allInspections = Array.isArray(parsed) ? parsed : [parsed];
             } catch (e) {
-                console.warn(`[${this.agentId}][🕵️] >> ⚠️ Existing file corrupted. Starting fresh.`);
-                console.log(`[${this.agentId}][🕵️] >> ⚠️ Error:`, e);
+                console.warn(`[${this.agentId}][🕵️] >> ⚠️ Existing file corrupted or invalid JSON. Starting fresh.`);
             }
         }
-
-        inspections.push(inspection);
-
+    
+        // Append the new data
+        if (Array.isArray(inspection)) {
+            allInspections.push(...inspection);
+        } else {
+            allInspections.push(inspection);
+        }
+    
+        // Write back to file
         try {
-            fs.writeFileSync(targetFilePath, JSON.stringify(inspections, null, 2));
-            console.log(`[${this.agentId}][🕵️] >> 💾 Result saved to ${path.basename(targetFilePath)}`);
+            fs.writeFileSync(targetFilePath, JSON.stringify(allInspections, null, 2));
+            console.log(`[${this.agentId}][🕵️] >> 💾 Results updated and saved to ${path.basename(targetFilePath)}`);
         } catch (e) {
             console.error(`[${this.agentId}][🕵️] >> ❌ Save failed: ${e}`);
         }

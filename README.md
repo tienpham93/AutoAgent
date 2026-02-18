@@ -18,7 +18,7 @@ flowchart LR
 
     subgraph Execution ["2. Execution Phase"]
         direction TB
-        Extractor(📄 Extractor Agent):::agent
+        Architect(📄 Architect Agent):::agent
         JsonSteps[Testcase.json]:::artifact
         AutoAgent(🦾 AutoBot Agent):::agent
         Browser[🌐 Playwright Browser]:::external
@@ -48,8 +48,8 @@ flowchart LR
     end
 
     %% Connections
-    RawTest --> Extractor
-    Extractor -->|Parses| JsonSteps
+    RawTest --> Architect
+    Architect -->|Parses| JsonSteps
 
     JsonSteps --> AutoAgent
     ElementTree --> AutoAgent
@@ -73,7 +73,7 @@ flowchart LR
 
 ## 🔄 The 4-Agent Workflow
 
-1.  **📄 Extractor Agent**:
+1.  **📄 Architect Agent**:
     *   **Input**: Raw test case descriptions (Text/PDF/Markdown/Json).
     *   **Action**: Analyzes the intent and requirements using an LLM.
     *   **Output**: Produces a structured `testcase.json` containing discrete, executable steps.
@@ -126,7 +126,7 @@ src/
 │   ├── AutoBot.ts          # Core Execution Loop (Generator/Executor)
 │   ├── BaseAgent.ts        # Shared logic (LLM Client, File Uploads)
 │   ├── Evaluator.ts        # Video Analysis Logic
-│   ├── Extractor.ts        # Test Case Parsing Logic
+│   ├── Architect.ts        # Test Case Parsing Logic
 │   └── Inspector.ts        # Log Analysis & System Auditing
 ├── Debug/
 │   ├── Elements/          # Snapshots of Accessibility Trees
@@ -152,7 +152,7 @@ src/
 ### Prerequisites
 *   Node.js (v18+)
 *   **Google Gemini API Key** (Required for `EvaluatorAgent`)
-*   **Anthropic API Key** (Optional for `AutoAgent`/`ExtractorAgent`)
+*   **Anthropic API Key** (Optional for `AutoAgent`/`ArchitectAgent`)
 
 ### Installation
 
@@ -175,7 +175,7 @@ env/
 The process is split into Execution, Evaluation, Inspection, and Reporting.
 
 ### 1. Run Extraction & Execution
-This script runs the `ExtractorAgent` to parse tests and immediately triggers the `AutoAgent` to run them.
+This script runs the `ArchitectAgent` to parse tests and immediately triggers the `AutoAgent` to run them.
 ```bash
 yarn run test:exec
 ```

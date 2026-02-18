@@ -14,8 +14,8 @@ export const GEMINI_ARCHITECT_MODEL = process.env.GEMINI_ARCHITECT_MODEL || "gem
 
 // Load Claude Configuration
 dotenv.config({ path: path.resolve(rootDir, 'env/claude.env') });
-export const CLAUDE_EXTRACTOR_KEY = process.env.CLAUDE_EXTRACTOR_KEY;
-export const CLAUDE_EXTRACTOR_MODEL = process.env.CLAUDE_EXTRACTOR_MODEL || "claude-3-5-haiku-20241022";
+export const CLAUDE_ARCHITECT_KEY = process.env.CLAUDE_ARCHITECT_KEY;
+export const CLAUDE_ARCHITECT_MODEL = process.env.CLAUDE_ARCHITECT_MODEL || "claude-3-5-haiku-20241022";
 export const CLAUDE_AUTO_AGENT_KEY = process.env.CLAUDE_AUTO_AGENT_KEY;
 export const CLAUDE_AUTO_AGENT_MODEL = process.env.CLAUDE_AUTO_AGENT_MODEL || "claude-haiku-4-5-20251001";
 
