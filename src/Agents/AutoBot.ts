@@ -5,6 +5,8 @@ import { FileHelper } from "../Utils/FileHelper";
 import { PROMPTS_DIR, RULES_DIR } from "../settings";
 import { CommonHelper } from "../Utils/CommonHelper";
 import { execSync } from "child_process";
+import * as fs from 'fs';
+import * as path from 'path';
 
 export class AutoBot extends BaseAgent {
     // Playwright Properties
@@ -151,23 +153,67 @@ export class AutoBot extends BaseAgent {
         }
     }
 
+    private async moveOrphanedVideos(): Promise<void> {
+        try {
+            const rootDir = process.cwd();
+            const files = fs.readdirSync(rootDir);
+
+            // Filter for webm files in the root
+            const videos = files.filter(f => f.endsWith('.webm'));
+
+            if (videos.length === 0) return;
+
+            console.log(`[${this.agentId}][🤖] >> 📦 Checking for orphaned tab videos...`);
+
+            for (const video of videos) {
+                const sourcePath = path.join(rootDir, video);
+                const stats = fs.statSync(sourcePath);
+                const now = new Date().getTime();
+                const fileTime = new Date(stats.mtime).getTime();
+
+                // Safety check: Only move files created/modified in the last 5 minutes
+                // to avoid stealing files from other parallel sessions if they haven't closed yet.
+                if (now - fileTime < 300000) {
+                    const destinationPath = path.join(this.testOutputDir, `tab_${video}`);
+
+                    // Ensure directory exists
+                    if (!fs.existsSync(this.testOutputDir)) {
+                        fs.mkdirSync(this.testOutputDir, { recursive: true });
+                    }
+
+                    fs.renameSync(sourcePath, destinationPath);
+                    console.log(`[${this.agentId}][🤖] >> ✅ Moved tab video: ${video} to ${this.testOutputDir}`);
+                }
+            }
+        } catch (error) {
+            console.error(`[${this.agentId}][🤖] >> ☠️ Failed to move orphaned videos: ${error}`);
+        }
+    }
+
     public async startBrowser(testName?: string): Promise<void> {
         this.testOutputDir = testName ? `output/${testName}_${this.sessionId}/` : `output/${this.sessionId}/`;
 
         console.log(`[${this.agentId}][🤖] >> 🚀 Initializing CLI Session...`);
         this.runCli(`open about:blank`);
 
-        console.log(`[${this.agentId}][🤖] >> 🎬 Start recording: ${this.testOutputDir}${testName}_${CommonHelper.getCurrentTimestamp()}.webm`);
+        console.log(`[${this.agentId}][🤖] >> 🎬 Start recording: ${this.testOutputDir}${testName}.webm`);
         this.runCli(`video-start`);
     }
 
     public async stopBrowser(testName?: string) {
-        console.log(`[${this.agentId}][🤖] >> 🎬 Stop and Saving video record: ${this.testOutputDir}${testName}_${CommonHelper.getCurrentTimestamp()}.webm`)
-        this.runCli(`video-stop --filename=${this.testOutputDir}${testName}.webm`);
-        await CommonHelper.sleep(5000);
-        
+        console.log(`[${this.agentId}][🤖] >> 🎬 Stop and Saving main video record...`);
+
+        // Stop the primary video
+        try {
+            this.runCli(`video-stop --filename=${this.testOutputDir}${testName}.webm`);
+        } catch (e) {
+            console.warn(`[${this.agentId}][🤖] >> Warning: Could not stop video gracefully.`);
+        }
+
         console.log(`[${this.agentId}][🤖] >> 🛑 Closing CLI Session...`);
         this.runCli(`close`);
+        await CommonHelper.sleep(2000);
+        await this.moveOrphanedVideos();
     }
 
     public async closeAllsessions() {
@@ -199,7 +245,7 @@ export class AutoBot extends BaseAgent {
             if (!FileHelper.isFilePath(screenshotPath)) {
                 FileHelper.createDirectory(screenshotPath);
             }
-            
+
             this.runCli(`screenshot --filename=${screenshot}`);
             console.log(`[${this.agentId}][🤖] >> 📸 Screenshot saved: ${screenshot}.png`);
             const base64Image = FileHelper.readAsBase64(screenshot);

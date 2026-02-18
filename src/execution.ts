@@ -65,7 +65,8 @@ async function singleThreadRun(testCase: TestCase, sessionId: string) {
             model: GEMINI_AUTO_AGENT_MODEL,
             personaTemplatePath: `${PERSONA_DIR}/autobot_persona.njk`,
             additionalContexts: [
-                `${SKILLS_DIR}/playwright-cli/SKILL.njk`
+                `${SKILLS_DIR}/playwright-cli/SKILL.njk`,
+                `${SKILLS_DIR}/playwright-cli/references/running-code.njk`,
             ]
         },
         {
