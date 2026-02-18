@@ -9,9 +9,9 @@ export class TerminalLogger {
     /**
      * Call this ONCE at the very top of your main execution file.
      */
-    public static initialize() {
+    public static initialize(fileName: string, sessionId?: string) {
 
-        const logPath = path.join(`full_execution.log`);
+        const logPath = path.join(`${fileName}_${sessionId || ''}.log`);
         
         this.logFileStream = fs.createWriteStream(logPath, { flags: 'a' });
         

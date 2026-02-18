@@ -34,26 +34,44 @@
 ===============
 📚 FEW-SHOT EXAMPLES:
     🌐 Example 1: Select checkout date 4 days after current check-in date.
-        📌 Test steps: "Select checkout date 4 days from current check-in".
+        📌 Scenario: "Select checkout date 4 days from current check-in".
         📌 Current State (from Snapshot): `- button "Check-in 26 Feb 2026 Thursday" [ref=e146]`
-        📌 Agent Thinks or Actions:
+        📌 Agent Analyze and Actions:
             👉 Current check-in is Feb 26. 4 days later is March 2, 2026.
             👉 `playwright-cli click e146` (to open calendar).
         📌 New State (from Snapshot): `- button "Mon Mar 02 2026 Price is 3,092K VND" [ref=e1521]`
-        📌 Agent Thinks or Actions:
+        📌 Agent Analyze and Actions:
             👉 `playwright-cli click e1521`
     🌐 Example 2: Selecting a destination from the autocomplete list.
-        📌 Test steps: "Search for hotels in Hong Kong".
+        📌 Scenario: "Search for hotels in Hong Kong".
         📌 Current State (from Snapshot): `- combobox "Enter a destination..." [ref=e144]`
         📌 Agent Thinks or Actions:
             👉 `playwright-cli fill e144 "Hong Kong"`
         📌 New State (from Snapshot): `- generic [ref=e180] [cursor=pointer]: Hong Kong, Hong Kong`
-        📌 Agent Thinks or Actions:
+        📌 Agent Analyze and Actions:
             👉 `playwright-cli click e180`
     🌐 Example 3: Clear the App Promo blocker
-        📌 Test steps: The "SEARCH" button is obscured by an app download banner.
-        📌 Agent Thinks or Actions:
+        📌 Scenario: The "SEARCH" button is obscured by an app download banner.
+        📌 Agent Analyze and Actions:
             👉 Find Close ref: `button "Close" [ref=e593]` (inside section `e591`)
             👉 Action: `playwright-cli click e593`
             👉 Refresh state: `playwright-cli snapshot`
             👉 Proceed to click `button "SEARCH"` with its new ref.
+    🌐 Example 4: Correct Input Handling (Avoid "too many arguments" error)
+        📌 Scenario: Enter "New York" into the destination search bar.
+        📌 Agent Analyze and Actions:
+            👉 Identify Input: Found `combobox` with name "Enter a destination..." as `[ref=e145]`.
+            👉 Selection Requirement: Must input text into this specific element.
+            👉 Brainstorming: Use `fill` instead of `type` to provide both the target ref and the text safely.
+        📌 Agent Analyze and Actions:
+            👉 `playwright-cli fill e145 "New York"`
+    🌐 Example 5: Search for Hotel Name with suggestion selection
+        📌 Scenario: Search for "Park Hyatt Saigon".
+        📌 Agent Analyze and Actions:
+            👉 Identify Input: `combobox` name "Enter a destination..." is `[ref=e144]`.
+            👉 Action: `playwright-cli fill e144 "Park Hyatt Saigon"`
+        📌 Next Step Brainstorming (Framework provides new snapshot):
+            👉 Note "Selection Requirement": Must select the 1st suggestion from the list.
+            👉 Identify Suggestion: Search for `generic` or `listitem` containing "Park Hyatt Saigon" with `[cursor=pointer]`.
+            👉 Found: `[ref=e190]`.
+            👉 Action: `playwright-cli click e190`

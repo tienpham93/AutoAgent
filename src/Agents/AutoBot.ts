@@ -35,8 +35,9 @@ export class AutoBot extends BaseAgent {
     private runCli(command: string): string {
         try {
             // Load options
+            const headedOpt = this.isHeaded ? '--headed' : '';
             const sessionId = this.sessionId ? `-s=${this.sessionId}` : '';
-            const fullCommand = `playwright-cli ${sessionId} ${command}`;
+            const fullCommand = `playwright-cli ${headedOpt} ${sessionId} ${command}`;
             const output = execSync(fullCommand, { encoding: 'utf-8', stdio: 'pipe' });
             return output;
         } catch (error: any) {
@@ -153,29 +154,23 @@ export class AutoBot extends BaseAgent {
     }
 
     public async startBrowser(testName?: string): Promise<void> {
-        const headedOpt = this.isHeaded ? '--headed' : '';
-
-        const timestamp = CommonHelper.getCurrentTimestamp();
-        this.testOutputDir = testName ? `output/${testName}_${timestamp}/` : `output/${timestamp}/`;
+        this.testOutputDir = testName ? `output/${testName}_${this.sessionId}/` : `output/${this.sessionId}/`;
 
         console.log(`[${this.agentId}][🤖] >> 🚀 Initializing CLI Session...`);
-        this.runCli(`${headedOpt} open about:blank`);
+        this.runCli(`open about:blank`);
 
         console.log(`[${this.agentId}][🤖] >> 🎬 Start recording: ${this.testOutputDir}${testName}_${CommonHelper.getCurrentTimestamp()}.webm`);
         this.runCli(`video-start`);
     }
 
-    public async stopRecording(testName?: string) {
+    public async stopBrowser(testName?: string) {
         console.log(`[${this.agentId}][🤖] >> 🎬 Stop and Saving video record: ${this.testOutputDir}${testName}_${CommonHelper.getCurrentTimestamp()}.webm`)
         this.runCli(`video-stop --filename=${this.testOutputDir}${testName}.webm`);
         await CommonHelper.sleep(5000);
-    }
-
-    public async stopBrowser() {
+        
         console.log(`[${this.agentId}][🤖] >> 🛑 Closing CLI Session...`);
         this.runCli(`close`);
     }
-    
 
     public async closeAllsessions() {
         console.log(`[${this.agentId}][🤖] >> 🧹 Closing all CLI Sessions...`);

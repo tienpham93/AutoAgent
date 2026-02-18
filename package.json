@@ -27,13 +27,14 @@
   },
   "scripts": {
     "debug": "ts-node src/Debug/Debugger.ts",
-    "test:exec": "ts-node src/execution.ts",
+    "test:run": "ts-node src/runner.ts",
     "test:eval": "ts-node src/evaluation.ts",
     "test:inspect": "ts-node src/inspection.ts",
     "test:allure": "npx ts-node src/Report/generate_allure.ts && allure generate allure-results --clean -o allure-report && allure serve allure-results",
     "test:cleanup": "echo 'Cleanup output folder' && rm -rf output",
-    "test:post-exec": "yarn test:eval && yarn test:inspect && yarn test:allure",
-    "test:e2e": "yarn test:exec && yarn test:post-exec",
+    "test:extract": "ts-node src/extraction.ts",
+    "test:post-run": "yarn test:eval && yarn test:inspect && yarn test:allure",
+    "test:e2e": "yarn test:extract && yarn test:run && yarn test:post-run",
     "pwcli": "playwright-cli",
     "claude": "claude"
   },
