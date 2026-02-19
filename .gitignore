@@ -20,3 +20,4 @@ log_inspections.json
 .claude
 full_*.log
 extracted_all_testcase.json
+total_inspections.json

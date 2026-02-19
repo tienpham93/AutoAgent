@@ -32,13 +32,13 @@ export class AutoBot extends BaseAgent {
     /**
      * Manage cli executions by session ID to every command
      */
-    private runCli(command: string): string {
+    private async runCli(command: string) {
         try {
             // Load options
             const headedOpt = this.isHeaded ? '--headed' : '';
             const sessionId = this.sessionId ? `-s=${this.sessionId}` : '';
             const fullCommand = `playwright-cli ${headedOpt} ${sessionId} ${command}`;
-            const output = execSync(fullCommand, { encoding: 'utf-8', stdio: 'pipe' });
+            const output =  execSync(fullCommand, { encoding: 'utf-8', stdio: 'pipe' });
             return output;
         } catch (error: any) {
             console.log(`[${this.agentId}][🤖] >> ☠️ CLI Command Error: ${error.message}`);
@@ -126,7 +126,7 @@ export class AutoBot extends BaseAgent {
                 console.log(`[${this.agentId}][🤖] >> 🦾 Executing step: "${step}"`);
                 console.log(`[${this.agentId}][🤖] >> 📌 Step Note: "${notes}"`);
                 console.log(`[${this.agentId}][🤖] >> 🎭 CLI: ${cmd}`);
-                this.runCli(cleanCmd);
+                await this.runCli(cleanCmd);
             }
 
             return {
@@ -194,11 +194,10 @@ export class AutoBot extends BaseAgent {
         this.testOutputDir = testName ? `output/${testName}_${this.sessionId}/` : `output/${this.sessionId}/`;
 
         console.log(`[${this.agentId}][🤖] >> 🚀 Initializing CLI Session...`);
-        this.runCli(`open about:blank`);
-
+        await this.runCli(`open about:blank`);
         await CommonHelper.sleep(3000);
         console.log(`[${this.agentId}][🤖] >> 🎬 Start recording: ${this.testOutputDir}${testName}.webm`);
-        this.runCli(`video-start`);
+        await this.runCli(`video-start`);
     }
 
     public async stopBrowser(testName?: string) {
@@ -206,20 +205,20 @@ export class AutoBot extends BaseAgent {
 
         // Stop the primary video
         try {
-            this.runCli(`video-stop --filename=${this.testOutputDir}${testName}.webm`);
+            await this.runCli(`video-stop --filename=${this.testOutputDir}${testName}.webm`);
         } catch (e) {
             console.warn(`[${this.agentId}][🤖] >> Warning: Could not stop video gracefully.`);
         }
 
         console.log(`[${this.agentId}][🤖] >> 🛑 Closing CLI Session...`);
-        this.runCli(`close`);
+        await this.runCli(`close`);
         await CommonHelper.sleep(3000);
         await this.moveOrphanedVideos();
     }
 
     public async closeAllsessions() {
         console.log(`[${this.agentId}][🤖] >> 🧹 Closing all CLI Sessions...`);
-        this.runCli(`close-all`);
+        await this.runCli(`close-all`);
     }
 
     public async getElementsTree(filename: string): Promise<string> {
@@ -247,7 +246,7 @@ export class AutoBot extends BaseAgent {
                 FileHelper.createDirectory(screenshotPath);
             }
 
-            this.runCli(`screenshot --filename=${screenshot}`);
+            await this.runCli(`screenshot --filename=${screenshot}`);
             console.log(`[${this.agentId}][🤖] >> 📸 Screenshot saved: ${screenshot}.png`);
             const base64Image = FileHelper.readAsBase64(screenshot);
             return base64Image;

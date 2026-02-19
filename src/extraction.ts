@@ -67,8 +67,6 @@ async function main() {
             console.log(`[${architect.agentId}][🏗️] >> ✅ Test cases Loaded successfully:\n${JSON.stringify(listTestCase, null, 2)}`);
             
             listAllTestCases.push(...listTestCase);
-            // DELAY to Cool down after the heavy "Parse" operation
-            await CommonHelper.sleep(5000);
         } catch (error) {
             console.error(`[${architect.agentId}][🏗️] >> ❌ Failed to prase "${file}":`, error);
             return;

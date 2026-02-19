@@ -143,7 +143,7 @@ export abstract class BaseAgent {
 
             process.stdout.write(`[${this.agentId}][🦸‍♂️] >> ⏳ Processing ${currentDisplayName}`);
             while (fileState === FileState.PROCESSING) {
-                await CommonHelper.sleep(3000);
+                await CommonHelper.sleep(2000);
                 process.stdout.write(".");
                 const freshState = await this.fileManager?.getFile(currentName || "");
                 fileState = freshState?.state;

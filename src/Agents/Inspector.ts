@@ -82,34 +82,4 @@ export class Inspector extends BaseAgent {
 
     }
 
-    public async writeInspectionToFile(inspection: any, targetFilePath: string): Promise<void> {
-        let allInspections: any[] = [];
-    
-        if (fs.existsSync(targetFilePath)) {
-            try {
-                const raw = fs.readFileSync(targetFilePath, 'utf-8');
-                const parsed = JSON.parse(raw);
-                // Ensure the existing data is an array
-                allInspections = Array.isArray(parsed) ? parsed : [parsed];
-            } catch (e) {
-                console.warn(`[${this.agentId}][🕵️] >> ⚠️ Existing file corrupted or invalid JSON. Starting fresh.`);
-            }
-        }
-    
-        // Append the new data
-        if (Array.isArray(inspection)) {
-            allInspections.push(...inspection);
-        } else {
-            allInspections.push(inspection);
-        }
-    
-        // Write back to file
-        try {
-            fs.writeFileSync(targetFilePath, JSON.stringify(allInspections, null, 2));
-            console.log(`[${this.agentId}][🕵️] >> 💾 Results updated and saved to ${path.basename(targetFilePath)}`);
-        } catch (e) {
-            console.error(`[${this.agentId}][🕵️] >> ❌ Save failed: ${e}`);
-        }
-    }
-
 }
