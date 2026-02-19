@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.1] - 2026-02-19
+
+### 🛠️ Upgrade: Architecture Decoupling
+*   **Handle missing video recording:** Added implicit wait and retry function to AutoBot
+
 ## [1.1.0] - 2026-02-19
 
 ### 🚀 Major Feature: `playwright-cli` Integration

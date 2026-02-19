@@ -20,7 +20,7 @@ Verify that a user can successfully search for a list of flights when entering a
 2. Select the 1st option from the "Flying from" suggestion list 
 3. Enter "Hong Kong" to "Flying to" input field
 4. Select the 1st option from the "Flying to" suggestion list
-5. At Departure date picker, Select default departure date
+5. At Departure date picker, Select tomorrow is the departure date
 6. At Flight Occupancy panel, Click Business class
 7. Click SEARCH FLIGHTS button
 
