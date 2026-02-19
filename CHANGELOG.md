@@ -2,8 +2,8 @@
 
 ## [1.1.1] - 2026-02-19
 
-### 🛠️ Upgrade: Architecture Decoupling
-*   **Handle missing video recording:** Added implicit wait and retry function to AutoBot
+### 🛠️ Upgrade: patch retry logic to handle missing video records
+*   **Handle missing video recording:** Added implicit wait and retry logic to startBrowser function.
 
 ## [1.1.0] - 2026-02-19
 
