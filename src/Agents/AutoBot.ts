@@ -195,9 +195,25 @@ export class AutoBot extends BaseAgent {
 
         console.log(`[${this.agentId}][🤖] >> 🚀 Initializing CLI Session...`);
         await this.runCli(`open about:blank`);
-        await CommonHelper.sleep(3000);
-        console.log(`[${this.agentId}][🤖] >> 🎬 Start recording: ${this.testOutputDir}${testName}.webm`);
-        await this.runCli(`video-start`);
+        await CommonHelper.sleep(2000);
+
+        // Retry 3 times if video-start fails, with 2 seconds interval
+        let attempts = 0;
+        while (attempts < 3) {
+            try {
+                const result = await this.runCli(`video-start`);
+                console.log(`[${this.agentId}][🤖] >> 🎬 video recording started:`, result);
+                if (result.includes('Error')) {
+                    throw new Error(result);
+                }
+                break; 
+            } catch (error) {
+                attempts++;
+                console.error(`[${this.agentId}][🤖] >> 💥 Failed to start video recording: ${error}`);
+                console.warn(`[${this.agentId}][🤖] >> Warning: Failed to start video recording (Attempt ${attempts}/3). Retrying...`);
+                await CommonHelper.sleep(2000);
+            }
+        }
     }
 
     public async stopBrowser(testName?: string) {
@@ -212,7 +228,8 @@ export class AutoBot extends BaseAgent {
 
         console.log(`[${this.agentId}][🤖] >> 🛑 Closing CLI Session...`);
         await this.runCli(`close`);
-        await CommonHelper.sleep(3000);
+
+        await CommonHelper.sleep(2000);
         await this.moveOrphanedVideos();
     }
 
