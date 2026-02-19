@@ -4,6 +4,10 @@ import { GraphInstance } from "./Services/GraphService/GraphInstance";
 import { GEMINI_EVALUATOR_KEY, GEMINI_EVALUATOR_MODEL, OUTPUT_DIR, PERSONA_DIR, RULES_DIR } from "./settings";
 import { AgentState, LLMVendor } from "./types";
 import { CommonHelper } from "./Utils/CommonHelper";
+import { TerminalLogger } from "./Utils/TerminalLogger";
+
+console.log(`[🧵🧵🧵] >> 🕵️ Start Evaluating process`);
+TerminalLogger.initialize("full_evaluation");
 
 const buildEvaluationWorkflow = (evaluator: Evaluator) => {
     const graph = new GraphInstance();

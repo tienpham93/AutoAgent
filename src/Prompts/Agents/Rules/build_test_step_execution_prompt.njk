@@ -1,8 +1,4 @@
 ------------------------------
-📚 KNOWLEDGE BASE:
-    👉 PAGE CONTEXTS: {{ pageContexts | default('N/A') }}
-    👉 PAGE WORKFLOWS: {{ pageWorkflows | default('N/A') }}
-------------------------------
 ⚓ CURRENT PAGE STATE
     👉 URL: {{ currentUrl }}
     👉 PAGE ELEMENTS SNAPSHOT (Accessibility Tree):
@@ -12,10 +8,17 @@
     👉 STEP TO EXECUTE: "{{ step }}"
     👉 CRITICAL NOTES: {{ contextNotes | default('None') }}
 ------------------------------
+📚 KNOWLEDGE BASE:
+    👉 PAGE CONTEXTS: {{ pageContexts | default('Same as previous steps') }}
+    👉 PAGE WORKFLOWS: {{ pageWorkflows | default('Same as previous steps') }}
+------------------------------
+🏅 PLAYWRIGHT SPECIFIC SKILLS: 
+    {{ playwrightSpecificSkills | default('N/A') }}
+------------------------------
 {% if error %}
 ⚠️ PREVIOUS ATTEMPT FAILED ⚠️
     👉 ERROR ENCOUNTERED: "{{ error }}"
-
+------------------------------
 📋 RECOVERY INSTRUCTION:
     1️⃣. Analyze the Error Message above.
     2️⃣. If the error suggests a timeout, probably the elements doesn't present, so that must look for the notes in that step first.
@@ -23,3 +26,6 @@
     4️⃣. If the errors regarding elements/locators, hence Do NOT repeat the exact same code/selector.
     5️⃣. Use the "CURRENT PAGE STATE" to find a better selector (e.g., if ID failed, try text or aria-label).
 {% endif %}
+------------------------------
+{{ AdditionalContexts }}
+------------------------------

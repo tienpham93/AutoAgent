@@ -1,7 +1,7 @@
 ------------------------------
 📤 OUTPUT SCHEMA: A VALID JSON object with this exact structure (Do not wrap in markdown):
 {
-    "execution_id": "Extract executionId from execution log"
+    "execution_id": "Extract sessionId from execution log"
     "test_details": {
         "test_name": "Extract 'testTitle' from input",
         "test_goal": "Extract 'testGoal' from input",
@@ -29,5 +29,5 @@
     2️⃣. Data Fidelity: Copy the texts for `action`, `expectedResults`, and `notes` exactly as they appear in the input JSON. Do not summarize them; use the raw text.
     3️⃣. Log Correlation: Use the provided `executionLogs` to help you identify which part of the video corresponds to which step, but rely on your **visual analysis** for the `visual_observation` field.
 ------------------------------
-{{ AdditionalRulesContexts }}
+{{ AdditionalContexts }}
 ------------------------------ 

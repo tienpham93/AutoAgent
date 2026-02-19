@@ -11,4 +11,7 @@ export class CommonHelper {
         return uuidv4().slice(totalDigits);
     }
         
+    static getCurrentTimestamp(): number {
+        return new Date().getTime();
+    }
 }

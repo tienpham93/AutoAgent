@@ -1,41 +1,20 @@
 import { AutoBot } from './Agents/AutoBot';
-import { Extractor } from './Agents/Extractor';
-import { FileHelper } from './Utils/FileHelper';
 import { AgentState, LLMVendor, TestCase } from './types';
-import pLimit from 'p-limit';
 import { AGENT_NODES } from "./constants";
 import {
-    GEMINI_EXTRACTOR_KEY,
-    GEMINI_EXTRACTOR_MODEL,
     PERSONA_DIR,
     GEMINI_AUTO_AGENT_KEY,
     GEMINI_AUTO_AGENT_MODEL,
-    TESTS_DIR,
-    RULES_DIR
+    SKILLS_DIR
 } from './settings';
 import { CommonHelper } from './Utils/CommonHelper';
 import { TerminalLogger } from './Utils/TerminalLogger';
 import { GraphInstance } from './Services/GraphService/GraphInstance';
+import { FileHelper } from './Utils/FileHelper';
 
-const MAX_CONCURRENT_WORKERS = 2;
-TerminalLogger.initialize();
-const executionId = CommonHelper.generateUUID();
-console.log(`[🧵🧵🧵] >> Execution ID: ${executionId}`);
-
-const buildExtractionWorkflow = (extractor: Extractor) => {
-    const graph = new GraphInstance();
-
-    // NODE REGISTER
-    graph.addNode(AGENT_NODES.SETUP_PERSONA, (state: AgentState) => extractor.getSystemNode(state));
-    graph.addNode(AGENT_NODES.EXTRACTION, (state: AgentState) => extractor.extractionNode(state));
-
-    // graph: SETUP_PERSONA -> EXTRACTION
-    graph.setEntryPoint(AGENT_NODES.SETUP_PERSONA);
-    graph.addEdge(AGENT_NODES.SETUP_PERSONA, AGENT_NODES.EXTRACTION);
-
-    graph.buildWorkflow();
-    return graph;
-};
+const sessionId = CommonHelper.generateUUID();
+console.log(`[🧵🧵🧵] >> 🤖 Executing with Session ID: ${sessionId}`);
+TerminalLogger.initialize("full_execution", sessionId);
 
 const buildAutomationWorkflow = (autoBot: AutoBot) => {
     const graph = new GraphInstance();
@@ -78,109 +57,87 @@ const buildAutomationWorkflow = (autoBot: AutoBot) => {
     return graph;
 };
 
-async function testExecuting(file: string) {
-    const testName = file.replace('.md', '');
-    console.log(`[🧵🧵🧵] >> ⚡ Starting processing for: ${file}`);
-    
-    // INIT AGENT
-    const extractor = new Extractor({
-        vendor: LLMVendor.GEMINI,
-        apiKey: GEMINI_EXTRACTOR_KEY as any,
-        model: GEMINI_EXTRACTOR_MODEL,
-        personaTemplatePath: `${PERSONA_DIR}/extractor_persona.njk`,
-        additionalContexts: [`${RULES_DIR}/extract_test_case_rules.njk`],
-    });
+async function singleThreadRun(testCase: TestCase, sessionId: string) {
+    const autoBot = new AutoBot(
+        {
+            vendor: LLMVendor.GEMINI,
+            apiKey: GEMINI_AUTO_AGENT_KEY as any,
+            model: GEMINI_AUTO_AGENT_MODEL,
+            personaTemplatePath: `${PERSONA_DIR}/autobot_persona.njk`,
+            additionalContexts: [
+                `${SKILLS_DIR}/playwright-cli/SKILL.njk`,
+                `${SKILLS_DIR}/playwright-cli/references/running-code.njk`,
+            ]
+        },
+        {
+            sessionId: sessionId,
+            isHeaded: true,
+            recordVideo: true,
+        }
+    );
 
-    const autoBot = new AutoBot({
-        vendor: LLMVendor.GEMINI,
-        apiKey: GEMINI_AUTO_AGENT_KEY as any,
-        model: GEMINI_AUTO_AGENT_MODEL,
-        personaTemplatePath: `${PERSONA_DIR}/autobot_persona.njk`,
-        additionalContexts: [`${RULES_DIR}/codegen_rules.njk`],
-    });
-
-    const extractionWorkflow = buildExtractionWorkflow(extractor);
     const automationWorkflow = buildAutomationWorkflow(autoBot);
+    autoBot.actionLogs = [];
 
     try {
-        // READ & PARSE
-        const rawMarkdown = FileHelper.readFile(`${TESTS_DIR}/${file}`);
+        await autoBot.startBrowser(testCase.title);
 
-        let listTestCase: [TestCase];
-        let thread_id = `extraction_${CommonHelper.generateUUID()}`;
-        try {
-
-            const response = await extractionWorkflow.execute(
+        for (let step of testCase.steps) {
+            const thread_id = `execution_${CommonHelper.generateUUID()}`;
+            await automationWorkflow.execute(
                 {
-                    extractor_rawTestCase: rawMarkdown
+                    step: step.action,
+                    notes: step.notes,
+                    pwSpecificSkillsPaths: step.pwSpecificSkillsPaths,
+                    pageContextPaths: step.pageContextPaths,
+                    pageWorkflowPaths: step.pageWorkflowPaths
                 },
                 thread_id
-            )
-            listTestCase = response.extractor_extractedTestcases as [TestCase];
-            console.log(`[${extractor.agentId}][🚁] >> ✅ Loaded successfully:\n${JSON.stringify(listTestCase, null, 2)}`);
-
-            // DELAY to Cool down after the heavy "Parse" operation
-            await CommonHelper.sleep(5000);
-
-        } catch (error) {
-            console.error(`[${extractor.agentId}][🚁] >> ❌ Failed to prase "${file}":`, error);
-            return;
+            );
         }
-
-        // AUTOMATION
-        autoBot.actionLogs = [];
-
-        for (let testCase of listTestCase!) {
-            const reportData = {
-                executionId: executionId,
-                testFile: file,
-                testTitle: testCase!.title,
-                testGoal: testCase!.goal,
-                testStep: testCase!.steps,
-                executionLogs: [...autoBot.actionLogs],
-                timestamp: new Date().toISOString()
-            };
-
-            try {
-                await autoBot.startBrowser(testCase!.title);
-
-                for (let step of testCase!.steps) {
-                    const thread_id = `execution_${CommonHelper.generateUUID()}`;
-                    await automationWorkflow.execute(
-                        {
-                            step: step.action,
-                            notes: step.notes
-                        },
-                        thread_id
-                    );
-                }
-
-            } catch (err) {
-                console.error(`[${autoBot.agentId}][${file}] >> Error in case "${testCase!.title}"`, err);
-            } finally {
-                await autoBot.stopBrowser();
-                await autoBot.extractLog(testName, reportData);
-                autoBot.actionLogs = [];
-            }
-        }
-        console.log(`[🧵🧵🧵] >> ✅ Worker Finished file: ${file}`);
     } catch (err) {
-        console.error(`[🧵🧵🧵] >> ❌ Worker Critical error processing file ${file}:`, err);
+        console.error(`[${autoBot.agentId}][🤖] >> ❌ Error in case "${testCase.title}"`, err);
+    } finally {
+        await autoBot.stopBrowser(testCase.title);
+        
+        const reportData = {
+            sessionId: sessionId,
+            testTitle: testCase.title,
+            testStep: testCase.steps,
+            executionLogs: [...autoBot.actionLogs],
+            timestamp: new Date().toISOString()
+        };
+
+        await autoBot.extractLog(testCase.title, reportData);
+        autoBot.actionLogs = [];
     }
 }
 
-async function executions() {
-    console.log(`[🧵🧵🧵] >> Starting with ${MAX_CONCURRENT_WORKERS} workers...`);
-    const files = FileHelper.readDirectory(TESTS_DIR).filter(f => f.endsWith('.md'));
-    const limit = pLimit(MAX_CONCURRENT_WORKERS);
+async function main() {
+    // argv[2] = Path to JSON file
+    const jsonPath = process.argv[2];
+    
+    // argv[3] = Test Case Title
+    const testTitle = process.argv[3];
 
     try {
-        const tasks = files.map(file => limit(() => testExecuting(file)));
-        await Promise.all(tasks);
-        console.log("[🧵🧵🧵] >> ✅ All workers finished execution.");
+        // Read JSON and find the specific test case
+        const rawData = FileHelper.readFile(jsonPath);
+        const allTests: TestCase[] = JSON.parse(rawData);
+        const testCase = allTests.find(t => t.title === testTitle);
+
+        if (!testCase) {
+            throw new Error(`Test case "${testTitle}" not found in ${jsonPath}`);
+        }
+
+        console.log(`[🧵🧵🧵] >> 🚀 Process started for: ${testTitle} (Session: ${sessionId})`);
+        await singleThreadRun(testCase, sessionId);
+        
+        process.exit(0);
     } catch (err) {
-        console.log(`[🧵🧵🧵] >> ❌ Critical Error: ${err}`);
+        console.error(`[🧵🧵🧵] >> ❌ Process Failed for: ${testTitle}:`, err);
+        process.exit(1);
     }
 }
 
-executions();
+main();

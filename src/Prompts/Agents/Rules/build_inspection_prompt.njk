@@ -1,7 +1,12 @@
 ------------------------------
 🧵 TASKS:
-    👉 Follow the PERSONA rules provided in the system message. 
-    👉 Return strictly OUTPUT SCHEMA format
+    👉 Follow the PERSONA rules provided in the system message.
+    👉 You will be giving a couple of terminal logs of LLM agent to analyze
+    👉 Firstly, you will extract agent performance data json files based on 📋 LOG ANALYZING RULES (AGENT-SPECIFIC) and associated OUTPUT SCHEMA format
+    👉 After that, I will inject 📋 LOG ANALYZING RULES (SYSTEM-HEALTH) and associated OUTPUT SCHEMA format, then you ONLY need to extract system health data (Please do NOT include agent performance matrix)
 ------------------------------
 🗂️ TEST LOG DATA:
 {{ logContent }}
+------------------------------
+{{ AdditionalContexts }}
+------------------------------

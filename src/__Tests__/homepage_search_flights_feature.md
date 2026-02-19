@@ -6,7 +6,7 @@
 2. Click on "Flights" tab in search menu bar
 
 ### 🛬 Teardowns 🛬
-1. Wait for 10s before close the browser
+1. Wait 10 seconds
 
 ---
 

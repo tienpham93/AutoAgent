@@ -1,6 +1,6 @@
 import { BaseAgent } from "./BaseAgent";
 import { FileHelper } from "../Utils/FileHelper";
-import { AgentConfig, AgentState, InspectionResult } from "../types";
+import { AgentConfig, AgentState } from "../types";
 import { RULES_DIR } from "../settings";
 import * as fs from 'fs';
 import * as path from 'path';
@@ -16,13 +16,20 @@ export class Inspector extends BaseAgent {
     public async InspectionNode(state: AgentState): Promise<any> {
         console.log(`[${this.agentId}][🔍] >> Inspecting log file at: ${state.inspector_logFilePath}`);
 
-        const logContent = FileHelper.readFile(state.inspector_logFilePath);
-        const fullPrompt = this.buildPrompt(
-            `${RULES_DIR}/build_inspection_prompt.njk`,
-            {
-                logContent: logContent
-            }
-        );
+        let fullPrompt = '';
+        if (state.inspector_logFilePath) {
+            const logContent = FileHelper.readFile(state.inspector_logFilePath);
+            fullPrompt = this.buildPrompt(
+                `${RULES_DIR}/build_inspection_prompt.njk`,
+                {
+                    logContent: logContent
+                }
+            );
+        } else {
+            fullPrompt = this.buildPrompt(
+                `${RULES_DIR}/analyze_system_health.njk`
+            );
+        }
 
         const userMessage = await this.buildMessageContent(
             [
@@ -59,7 +66,7 @@ export class Inspector extends BaseAgent {
 
         try {
             const cleanJson = lastMessageText.replace(/```json|```/g, '').trim();
-            const inspectionResult = JSON.parse(cleanJson) as InspectionResult;
+            const inspectionResult = JSON.parse(cleanJson) as any;
             return {
                 inspector_inspectionResult: inspectionResult,
                 messages: state.messages
@@ -73,33 +80,6 @@ export class Inspector extends BaseAgent {
             };
         }
 
-    }
-
-    public async writeInspectionToFile(inspection: InspectionResult, targetFilePath: string): Promise<void> {
-        let inspections: any[] = [];
-
-        const directory = path.dirname(targetFilePath);
-
-        if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true });
-
-        if (fs.existsSync(targetFilePath)) {
-            try {
-                const raw = fs.readFileSync(targetFilePath, 'utf-8');
-                inspection = JSON.parse(raw);
-            } catch (e) {
-                console.warn(`[${this.agentId}][🕵️] >> ⚠️ Existing file corrupted. Starting fresh.`);
-                console.log(`[${this.agentId}][🕵️] >> ⚠️ Error:`, e);
-            }
-        }
-
-        inspections.push(inspection);
-
-        try {
-            fs.writeFileSync(targetFilePath, JSON.stringify(inspections, null, 2));
-            console.log(`[${this.agentId}][🕵️] >> 💾 Result saved to ${path.basename(targetFilePath)}`);
-        } catch (e) {
-            console.error(`[${this.agentId}][🕵️] >> ❌ Save failed: ${e}`);
-        }
     }
 
 }

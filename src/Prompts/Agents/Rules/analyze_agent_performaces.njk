@@ -1,0 +1,57 @@
+📤 OUTPUT SCHEMA: purely a valid JSON object. No markdown.
+[
+  {
+    "agent_id": "String (e.g., AutoBot_dbeabd282ce1)",
+    "role": "AutoBot | Architect | Evaluator",
+    "metadata": {
+        "overall_summary": "A high-level brief of the agent's performance during this log segment.",
+        "fatal_errors": ["List of critical errors that blocked completion or caused a crash"],
+
+        // --- IF ROLE IS ARCHITECT ---
+        "files_processed": ["Array of filenames"],
+        "total_test_cases_extracted": Number,
+        "extraction_success_rate": "Percentage (Successful extractions vs Total attempts)",
+
+        // --- IF ROLE IS AUTOBOT ---
+        "session_id": "String",
+        "steps_completed": Number,
+        "self_healing_attempts": Number,
+        "execution_success_rate": "Percentage (Steps passed on Attempt 1 vs Total steps)",
+        "video_status": "Saved | Failed",
+
+        // --- IF ROLE IS EVALUATOR ---
+        "execution_id_referenced": "String",
+        "total_evaluations": Number,
+        "video_analysis_success": Boolean,
+        "evaluation_success_rate": "Percentage (Evaluations completed vs Evaluations triggered)"
+    },
+    "behavioral_summary": "Detailed narrative of the agent's logic and patterns.",
+    "root_cause_analysis": "Technical explanation of any degradation or failure.",
+    "critical_failures": ["Specific snippets from the log showing the exact point of failure"]
+  }
+]
+
+===============
+📋 LOG ANALYZING RULES (AGENT-SPECIFIC):
+  🏗️ ARCHITECT:
+    📌 **Fatal Errors**: Look for `❌ Failed to parse` or `Error reading template`.
+    📌 **Success Rate**: Calculate based on how many feature files resulted in `✅ Test cases Loaded successfully` vs how many files were started.
+  🤖 AUTOBOT:
+    📌 **Fatal Errors**: 
+        - Flag `error: unknown '--X' option` (CLI syntax error).
+        - Flag `Unknown command: I` (Indicates a hallucination where the agent tried to speak instead of code).
+        - Flag `💥 CLI Execution Error`.
+    📌 **Execution Success Rate**: Calculate based on the number of steps that reached `❔ Execution success: true` on **Attempt 1**. 
+    📌 **Self-Healing**: Monitor `🔄 Execution attempt` counts.
+  🕵️ EVALUATOR:
+    📌 **Fatal Errors**: Look for failed video uploads or `⏳ Processing ... Failed`.
+    📌 **Evaluation Success Rate**: Compare `🎯 Evaluating test run` triggers against `❔ Evaluation success: true` markers.
+    📌 **Consistency**: Note if the Evaluator correctly caught failures that the AutoBot logs missed (Silent Failures).
+===============
+🎯 PERFORMANCE CLASSIFICATION:
+  🟢 OPTIMAL: 100% Success Rates, No Fatal Errors, No Self-Healing required.
+  🟡 DEGRADED: Success Rate < 100% or presence of Self-Healing attempts, but task finished.
+  🔴 CRITICAL: Fatal Errors present, 0% Success Rate, or Agent Aborted.
+------------------------------
+{{ AdditionalContexts }}
+------------------------------

@@ -3,25 +3,14 @@
 [
     {
         "title": "string",
-        "goal": "string",
         "steps": [
             {
-                "action": "string (step 1 action)",
-                "expectedResults": [
-                    "string (map the expected result of step 1 to here),
-                ],
-                "notes": [
-                    "string (attach corresponding note of bold text **text** to here)
-                ]
-            }, 
-            {
-                "action": "string (step 2 action)",
-                "expectedResults": [
-                    "string (map the expected result of step 2 to here),
-                ],
-                "notes": [
-                    "string (attach corresponding note of bold text **text** to here)
-                ]
+                "action": "string",
+                "expectedResults": ["string"],
+                "notes": ["string"],
+                "pwSpecificSkillsPaths": ["string"],
+                "pageContextPaths": ["string"],
+                "pageWorkflowPaths": ["string"],
             }
         ]
     }
@@ -51,6 +40,21 @@
         📌 Cross-reference the Notes section for that keyword.
         📌 If found, copy the full definition from the Notes section into the notes list of that step.
         📌 If a step contains multiple bold keywords, append all corresponding notes.
+    6️⃣. PLAYWRIGHT SPECIFIC SKILLS MAPPING RULES:
+        📌 Analyze the 'action' and 'notes' of each step.
+        📌 Compare against the 📚 PLAYWRIGHT CORE SKILLS and 📚 PLAYWRIGHT SKILLS CATALOG.
+        📌 Populate "pwSpecificSkillsPaths" with the relative paths of the required .njk files.
+    7️⃣. PAGE KNOWLEDGE MAPPING RULES (Contexts & Workflows):
+        📌 Analyze the intent of the step (e.g., is the user on the Homepage, Search Results, or Payment page?).
+        📌 Compare the step action against the 📚 PAGE KNOWLEDGE CATALOG provided in the additional contexts.
+        📌 Mapping Contexts: Populate pageContexts with the file path of the relevant page context (e.g., "Contexts/homepage_context.njk").
+        📌 Mapping Workflows: Populate pageWorkflows with the file path of the relevant workflow instruction (e.g., "Workflows/search_workflow.njk").
+        📌 If a step transitions from one page to another, include the knowledge for the destination page.
+        📌 Optimization Rule: To save tokens, only provide page knowledge (Contexts and Workflows) when the "Page State" changes.
+        📌 Injection Logic:
+            👉 First Step: Always populate pageContexts and pageWorkflows for the very first step of the test.
+            👉 Page Transitions: Only populate these fields again if a step involves navigating to a NEW page or URL (e.g., moving from "Homepage" to "Search Results").
+            👉 Same-Page Sequence: If multiple consecutive steps occur on the same page, set pageContexts and pageWorkflows to [] for all steps after the first one.
 ------------------------------
-{{ AdditionalRulesContexts }}
+{{ AdditionalContexts }}
 ------------------------------

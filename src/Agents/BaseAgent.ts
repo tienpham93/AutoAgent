@@ -25,7 +25,6 @@ export abstract class BaseAgent {
         };
         this.apiKey = config.apiKey;
         this.initializeVendor();
-
         this.systemPrompt = new SystemMessage(this.buildSystemPrompt());
     }
 
@@ -64,24 +63,25 @@ export abstract class BaseAgent {
 
     private buildSystemPrompt(): string {
         const personaTemplate = FileHelper.retrieveNjkTemplate(this.config.personaTemplatePath!);
+        console.log(`[${this.agentId}][🦸‍♂️] >> 📚 Loading persona: ${this.config.personaTemplatePath}`);
 
         let additionalContextsRendered = [];
         for (let context of this.config.additionalContexts!) {
+            console.log(`[${this.agentId}][🦸‍♂️] >> 📚 Loading additional context: ${context}`);
             // Check if additionalContexts is file path string or raw string
             const contextContent = FileHelper.isFilePath(context)
                 ? FileHelper.retrieveNjkTemplate(context)
                 : context;
             additionalContextsRendered.push(contextContent);
         }
-
         return nunjucks.renderString(personaTemplate, {
-            AdditionalRulesContexts: additionalContextsRendered.join("\n\n"),
+            AdditionalContexts: additionalContextsRendered.join("\n\n"),
         });
     }
 
-    public buildPrompt(templatePath = 'N/A', dynamicData: object): string {
+    public buildPrompt(templatePath = 'N/A', dynamicData?: object): string {
         const promptTemplate = FileHelper.retrieveNjkTemplate(templatePath);
-        return nunjucks.renderString(promptTemplate, dynamicData);
+        return nunjucks.renderString(promptTemplate, dynamicData || {});
     }
 
     /**
@@ -143,7 +143,7 @@ export abstract class BaseAgent {
 
             process.stdout.write(`[${this.agentId}][🦸‍♂️] >> ⏳ Processing ${currentDisplayName}`);
             while (fileState === FileState.PROCESSING) {
-                await CommonHelper.sleep(3000);
+                await CommonHelper.sleep(2000);
                 process.stdout.write(".");
                 const freshState = await this.fileManager?.getFile(currentName || "");
                 fileState = freshState?.state;

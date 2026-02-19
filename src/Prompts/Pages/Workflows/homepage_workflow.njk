@@ -1,76 +1,45 @@
 🏠 HOMEPAGE & SEARCH WORKFLOW
 ===============
+🚦 EXECUTION LOGIC:
+    🔍 REF IDENTIFICATION:
+        📌 Analyze the current YAML snapshot. Map the step's keyword (e.g., "Destination") to a stable name/role (e.g., `combobox "Enter a destination..."`).
+        📌 Extract the current volatile `[ref=eXXX]`. Never reuse a ref from a previous step without verifying the current snapshot.
+    🛠️ INTERACTION STRATEGY:
+        📌 Check Context Notes for "Blocking Behavior": Does an overlay (like the App Promo [ref=e593]) exist in the tree? If yes, brainstorm a "Clear Blocker" step first.
+        📌 Check Context Notes for "Selection Requirement": For inputs like Destination, typing is not enough. Brainstorm a two-act play: 1. `fill` text -> 2. `click` the resulting suggestion ref.
+        📌 Check Context Notes for "Sequential Logic": If clicking a Check-in box, brainstorm that the next snapshot will contain a `dialog` or `grid` that wasn't there before.
+    🕹️ CLI COMMAND SELECTION: 
+        📌 Based on the element type and the analyzed note, select the most precise command (`fill`, `type`, `click`, or `press Enter`).
+===============
 🚦 DECISION LOGIC:
-🟢 Status: CONTINUE
-    🕹️ Trigger: Standard sequential execution of the Search Form or Carousel interaction.
-    🎬 Homepage Hotels search Specific Conditions:
-        📌 Search Input: The Auto-complete panel ([data-selenium="autocompletePanel"]) is visible after typing destination.
-        📌 Date Picker: The Calendar container ([data-selenium="rangePickerCheckIn"]) is visible after clicking the Check-in box.
-    
-    🎬 Homepage Flights search Specific Conditions:
-        📌 Service Tabs: The "Flights" panel is visible after clicking the Flights tab.
-        📌 Origin/Dest Inputs: The Listbox suggestions (role="listbox") are visible after typing into "Flying from" or "Flying to".
-        📌 Auto-Navigation: The "Flying to" input automatically receives focus after selecting an Origin. The "Departure Date" picker automatically opens after selecting a Destination.
-    
-    🎬 Search Results Page (SRP) Specific Conditions:
-        📌 Page Load: The URL contains "/search" and the Flight Filter Sidebar is visible.
-        📌 Filtering: The flight list updates (loading spinner disappears) after applying a filter (e.g., "Direct" stops).
-        📌 Expansion: The flight details section (legs/terminals) becomes visible after clicking "Expand flight details".
-
-🟠 Status: RETRY
-    🕹️ Trigger: Handling UI Latency, "Click-Blocking" overlays, and Focus loss.
-    🎬 Homepage seach Hotels Specific Scenarios & Fixes:
-        📌 Scenario: Click on "Search Button" failed because it was obscured by the Date Picker or Occupancy Popover.
-            Fix: Dispatch a click to the page body or [data-element-name="search-box-layout"] to close the open popover, then retry the Search button click.
-        📌 Scenario: Auto-complete suggestions ([data-testid="autosuggest-item"]) did not appear after typing.
-            Fix: Clear the input (fill("")) -> Wait 500ms -> Re-type the keyword -> Wait for networkidle.
-        📌 Scenario: Target Date is not visible in the current 2-month calendar view.
-            Fix: Click [data-selenium="calendar-next-month-button"] -> Check visibility again. (Repeat up to 12 times).
-    🎬 Homepage seach Flights Specific Scenarios & Fixes:
-        📌 Scenario: Click on "Search Button" failed because it was obscured by the Date Picker or Occupancy Popover.
-            Fix: Dispatch a click to the page body or [data-element-name="search-box-layout"] to close the open popover, then retry the Search button click.
-        📌 Scenario: Auto-complete suggestions did not appear after typing.
-            Fix: Clear the input (fill("")) -> Wait 500ms -> Re-type the keyword -> Wait for networkidle.
-        📌 Scenario: search Flights "Flying to" input did not auto-focus after selecting Origin.
-            Fix: Explicitly click the "Flying to" combobox before attempting to type.
-        📌 Scenario: Target Date is not visible in the current 2-month calendar view.
-            Fix: Click "Next Month" button -> Check visibility again. (Repeat up to 12 times).
-
-🔵 Status: SKIP
-    🕹️ Trigger: Default values match requirements or optional UI elements.
-    🎬 Homepage search Hotels Specific Scenarios:
-        📌 Occupancy Defaults: If the test case requires "2 Adults" and the Occupancy Box text already reads "2 Adults", SKIP opening the Occupancy Popover.
-        📌 Date Defaults: If the test case allows "Any Date" or "Today/Tomorrow", and the inputs are pre-filled, SKIP the Date Picker interaction.
-        📌 Promotional Modals: If a "Coupons" or "Sign In" modal appears on load, SKIP normal flow to close it (.close-button) before proceeding.
-    🎬 Homepage search Flights Specific Scenarios:
-        📌 Trip Type Defaults: If the test requires "One-way" and the "One-way" toggle already has `aria-pressed="true"`, SKIP clicking it.
-        📌 Occupancy Defaults: If the test case requires "1 Adult" and the text already reads "1", SKIP opening the Passenger Popover.
-        📌 Promotional Modals: If a "Coupons" or "Sign In" modal appears on load, SKIP normal flow to close it (.close-button) before proceeding.
-    
-🔴 Status: ABORT
-    🕹️ Trigger: Critical Search Console failure or No Inventory.
-    🎬 General Scenarios:
-        📌 Broken Search: The "Search" button remains disabled (`disabled` attribute) even after all fields are validly filled.
-        📌 No Suggestions: The API returns no results for a known valid city (e.g., "Hong Kong") after 3 retries.
-    🎬 Homepage search Hotels Specific Scenarios:
-        📌 Broken Search: The "Search" button remains disabled (disabled attribute) even after all fields (Dest, Dates, Occupancy) are validly filled.
-        📌 No Suggestions: The API returns no results for a known valid city (e.g., "Hong Kong") after 3 retries (indicates API down).
-        📌 Calendar Freeze: The Date Picker does not open when clicking the Check-in box.
-    🎬 Homepage search Flights Specific Scenarios:
-        📌 Calendar Freeze: The Flight Date Picker does not open when clicking the Departure input.
-        📌 No Inventory: SRP loads but displays a "No flights found" or "Adjust your search" error message instead of a list.
-
+    🟢 Status: CONTINUE
+        🕹️ Trigger: Sequential execution of Search Form.
+        🎬 Specific Conditions:
+            📌 Search Input: The listbox/suggestions appear in the tree after `fill`.
+            📌 Date Picker: The `dialog "Check Out Date Picker" [ref=e1720]` is visible after clicking Check-in.
+    🟠 Status: RETRY
+        🕹️ Trigger: UI Latency or Overlays.
+        🎬 Scenarios & Fixes:
+            📌 Scenario: Blocker Overlay.
+                Fix: Locate `button "Close" [ref=e593]` and click it first.
+            📌 Scenario: No suggestions appear.
+                Fix: `playwright-cli fill <ref> ""` -> Wait 500ms -> `playwright-cli type <ref> "Keyword"` -> `playwright-cli snapshot`.
+            📌 Scenario: Target Date is not in current view (e.g., Apr 2026).
+                Fix: Find `button "Next Month" [ref=e1728]` -> click -> `snapshot` -> Repeat.
+    🔵 Status: SKIP
+        🕹️ Trigger: State already matches requirements.
+        🎬 Scenarios:
+            📌 Service Tabs: If `tab "Hotels" [ref=e84]` has attribute `[selected]`, SKIP clicking it.
+            📌 Occupancy: If `button "Guests and rooms..." [ref=e162]` text already matches requirement, SKIP interaction.
+    🔴 Status: ABORT
+        🕹️ Trigger: Functional failure.
+        🎬 Scenarios:
+            📌 Missing Ref: Critical element (like SEARCH [ref=e182]) cannot be found in the YAML tree after 3 snapshots.
+        📌 Dialog Freeze: Clicking Check-in does not produce the `dialog [ref=e1720]` in the tree.
 ===============
 🎯 TEST COMPLETION SIGNALS:
-✅ Test Case Status: COMPLETE (PASS)
-    🎖️ Criteria: All actions listed in the Test Case Step Actions have been executed.
-    ⚖️ Conditions:
-        📌 Step Exhaustion: The LLM has iterated through the final step of the provided list (e.g., Step 6 of 6 is done).
-        📌 No Blockers: The workflow did not encounter an ABORT condition.
-        📌 Note: Even if the visual result is wrong (e.g., Search Page didn't load), if the LLM successfully performed the "Click Search" action without a generic crash, the status is COMPLETE. Validation is delegated to the Observer.
-        
-❌ Test Case Status: FAILURE (FAIL)
-    🎖️ Criteria: The execution flow was interrupted and could not finish the list.
-    ⚖️ Conditions:
-        📌 Abort Triggered: The workflow logic returned ABORT (see Section 1).
-        📌 Stuck: The LLM cannot perform the required action for the current step (e.g., cannot find the "Search" button), preventing it from reaching the end of the test steps.
+    ✅ COMPLETE (PASS)
+        🎖️ Criteria: `playwright-cli click <SEARCH_REF>` is executed successfully.
+        🎖️ Validation: The subsequent `playwright-cli snapshot` shows a URL containing `/search` or a "Sort & Filter" region.
+    ❌ FAILURE (FAIL)
+        🎖️ Criteria: The agent encounters an ABORT condition or remains "Stuck" (cannot find a required ref) for more than 3 interaction loops.

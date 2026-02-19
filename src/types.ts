@@ -1,4 +1,4 @@
-import { Annotation, AnnotationRoot, LastValue, MessagesAnnotation } from "@langchain/langgraph";
+import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
 
 export type GeminiClient = {
     apiKey: string;
@@ -9,14 +9,16 @@ export type GeminiClient = {
 
 export type TestCase = {
     title: string;
-    goal: string;
     steps: Steps[];
 };
 
 type Steps = {
     action: string;
     expectedResults: string[];
-    notes: string[]
+    notes: string[];
+    pwSpecificSkillsPaths: string[];
+    pageContextPaths: string[];
+    pageWorkflowPaths: string[];
 }
 
 export interface AgentConfig {
@@ -62,42 +64,6 @@ export interface EvaluationResult {
     final_result: "pass" | "fail";
 }
 
-export interface InspectionResult {
-    system_health: {
-        status: "HEALTHY" | "DEGRADED" | "CRITICAL";
-        total_workers_started: number;
-        total_workers_finished: number;
-        fatal_crashes_count: number;
-        critical_logs: string[];
-    };
-    environmental_factors: {
-        network_stability: {
-            timeout_events: number;
-            assessment: string;
-        };
-        llm_service_health: {
-            parsing_failures: number;
-            quota_warnings: number;
-            assessment: string;
-        };
-        system_overhead: {
-            throttle_events_count: number;
-            estimated_idle_time_ms: number;
-        };
-    };
-    agent_performance_matrix: Array<{
-        agent_id: string;
-        role: "AutoBot" | "Extractor";
-        assigned_file: string;
-        metrics: {
-            steps_attempted: number;
-            self_healing_trigger_count: number;
-            did_recover: boolean;
-        };
-        root_cause_analysis: string;
-    }>;
-}
-
 export interface Step {
     step_number: number;
     action: string;
@@ -111,10 +77,10 @@ export interface EvaluationRecord {
     timestamp: string;
     execution_id: string;
     test_run_id: string;
-    test_details: { 
-        test_name: string; 
-        test_goal: string; 
-        steps: Step[] 
+    test_details: {
+        test_name: string;
+        test_goal: string;
+        steps: Step[]
     };
     final_judgement: string;
     final_result: "pass" | "fail";
@@ -135,20 +101,29 @@ export const AgentStateAnnotationSchema = Annotation.Root({
     success: Annotation<boolean>(),
     attempts: Annotation<number>(),
     threadId: Annotation<string>(),
+    pwSpecificSkillsPaths: Annotation<string[]>(),
+    pageContextPaths: Annotation<string[]>(),
+    pageWorkflowPaths: Annotation<string[]>(),
 
     // AutoAgent specific annotations
-    extractor_rawTestCase: Annotation<string>(),
-    extractor_extractedTestcases: Annotation<TestCase[]>(),
+    architect_rawTestCase: Annotation<string>(),
+    architect_extractedTestcases: Annotation<TestCase[]>(),
 
-    autoAgent_domTree: Annotation<string>(),
-    autoAgent_screenshot: Annotation<string>(),
+    autoBot_domTree: Annotation<string>(),
+    autoBot_screenshot: Annotation<string>(),
 
     evaluator_videoPaths: Annotation<string[]>(),
     evaluator_jsonPath: Annotation<string>(),
     evaluator_evaluationResult: Annotation<EvaluationResult>(),
 
     inspector_logFilePath: Annotation<string>(),
-    inspector_inspectionResult: Annotation<InspectionResult>(),
+    inspector_inspectionResult: Annotation<any>(),
 });
 
 export type AgentState = typeof AgentStateAnnotationSchema.State;
+
+export type CliConfig = {
+    sessionId: string;
+    isHeaded?: boolean;
+    recordVideo?: boolean
+}

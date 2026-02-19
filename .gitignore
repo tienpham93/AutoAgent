@@ -15,3 +15,9 @@ allure-report/
 logs/
 full_execution.log
 log_inspections.json
+.playwright
+.playwright-cli
+.claude
+full_*.log
+extracted_all_testcase.json
+total_inspections.json
