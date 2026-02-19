@@ -79,9 +79,9 @@ export abstract class BaseAgent {
         });
     }
 
-    public buildPrompt(templatePath = 'N/A', dynamicData: object): string {
+    public buildPrompt(templatePath = 'N/A', dynamicData?: object): string {
         const promptTemplate = FileHelper.retrieveNjkTemplate(templatePath);
-        return nunjucks.renderString(promptTemplate, dynamicData);
+        return nunjucks.renderString(promptTemplate, dynamicData || {});
     }
 
     /**

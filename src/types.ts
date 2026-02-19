@@ -64,42 +64,6 @@ export interface EvaluationResult {
     final_result: "pass" | "fail";
 }
 
-export interface InspectionResult {
-    system_health: {
-        status: "HEALTHY" | "DEGRADED" | "CRITICAL";
-        total_workers_started: number;
-        total_workers_finished: number;
-        fatal_crashes_count: number;
-        critical_logs: string[];
-    };
-    environmental_factors: {
-        network_stability: {
-            timeout_events: number;
-            assessment: string;
-        };
-        llm_service_health: {
-            parsing_failures: number;
-            quota_warnings: number;
-            assessment: string;
-        };
-        system_overhead: {
-            throttle_events_count: number;
-            estimated_idle_time_ms: number;
-        };
-    };
-    agent_performance_matrix: Array<{
-        agent_id: string;
-        role: "AutoBot" | "Architect";
-        assigned_file: string;
-        metrics: {
-            steps_attempted: number;
-            self_healing_trigger_count: number;
-            did_recover: boolean;
-        };
-        root_cause_analysis: string;
-    }>;
-}
-
 export interface Step {
     step_number: number;
     action: string;
@@ -153,7 +117,7 @@ export const AgentStateAnnotationSchema = Annotation.Root({
     evaluator_evaluationResult: Annotation<EvaluationResult>(),
 
     inspector_logFilePath: Annotation<string>(),
-    inspector_inspectionResult: Annotation<InspectionResult>(),
+    inspector_inspectionResult: Annotation<any>(),
 });
 
 export type AgentState = typeof AgentStateAnnotationSchema.State;

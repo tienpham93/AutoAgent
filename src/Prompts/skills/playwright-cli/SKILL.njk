@@ -249,6 +249,10 @@ playwright-cli tracing-stop
 playwright-cli close
 ```
 
+## Key notes
+1. DO NOT use `playwright-cli type` when enter text to an input field
+-> Please use `playwright-cli fill` to provide both the target ref and the text safely.
+
 ## Specific tasks
 
 * **Request mocking** [references/request-mocking.njk](references/request-mocking.njk)

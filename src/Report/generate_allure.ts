@@ -131,7 +131,7 @@ function generateAllureReport() {
             }
 
             if (supportAgents.length > 0) {
-                descHtml += `<h3>🚁 Architect Agents</h3><ul>`;
+                descHtml += `<h3>🏗️ Architect Agents</h3><ul>`;
                 supportAgents.forEach(support => {
                     descHtml += `<li><b>Agent ID:</b> ${support.agent_id}<br/><b>Result:</b> ${support.root_cause_analysis}</li>`;
                 });

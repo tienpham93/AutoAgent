@@ -196,6 +196,7 @@ export class AutoBot extends BaseAgent {
         console.log(`[${this.agentId}][🤖] >> 🚀 Initializing CLI Session...`);
         this.runCli(`open about:blank`);
 
+        await CommonHelper.sleep(3000);
         console.log(`[${this.agentId}][🤖] >> 🎬 Start recording: ${this.testOutputDir}${testName}.webm`);
         this.runCli(`video-start`);
     }
@@ -212,7 +213,7 @@ export class AutoBot extends BaseAgent {
 
         console.log(`[${this.agentId}][🤖] >> 🛑 Closing CLI Session...`);
         this.runCli(`close`);
-        await CommonHelper.sleep(2000);
+        await CommonHelper.sleep(3000);
         await this.moveOrphanedVideos();
     }
 

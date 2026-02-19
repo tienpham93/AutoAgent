@@ -2,7 +2,8 @@ import { Inspector } from "./Agents/Inspector";
 import { AGENT_NODES } from "./constants";
 import { GraphInstance } from "./Services/GraphService/GraphInstance";
 import { GEMINI_AUTO_AGENT_KEY, GEMINI_AUTO_AGENT_MODEL, PERSONA_DIR, RULES_DIR } from "./settings";
-import { AgentState, InspectionResult, LLMVendor } from "./types";
+import { AgentState, LLMVendor } from "./types";
+import { CommonHelper } from "./Utils/CommonHelper";
 import { FileHelper } from "./Utils/FileHelper";
 
 const buildInspectionWorkflow = (inspector: Inspector) => {
@@ -22,14 +23,16 @@ const buildInspectionWorkflow = (inspector: Inspector) => {
     return graph;
 }
 
-async function logInspection() {
+async function analyzingAgentPerformances() {
     // Init Agent
     const inspector = new Inspector({
         vendor: LLMVendor.GEMINI,
         apiKey: GEMINI_AUTO_AGENT_KEY as any,
         model: GEMINI_AUTO_AGENT_MODEL,
         personaTemplatePath: `${PERSONA_DIR}/inspector_persona.njk`,
-        additionalContexts: [`${RULES_DIR}/analyze_log_rules.njk`],
+        additionalContexts: [
+            `${RULES_DIR}/analyze_agent_performaces.njk`
+        ],
     });
 
     const inspectionWorkflow = buildInspectionWorkflow(inspector);
@@ -42,9 +45,11 @@ async function logInspection() {
 
     console.log(`[${inspector.agentId}][🔍] >> Found ${logFiles.length} logs to inspect: ${logFiles.join(', ')}`);
 
-    const allInspectionResults: InspectionResult[] = [];
+    const agentPerformancesLog: any[] = [];
 
-    // Iterate through each log file and run inspection
+    let thread_id = `inspection_${CommonHelper.generateUUID()}`;
+
+    // AGENT PERFORMANCES LOGS
     for (const logFile of logFiles) {
         console.log(`[${inspector.agentId}][🕵️] >> Inspecting: ${logFile}...`);
         try {
@@ -52,27 +57,41 @@ async function logInspection() {
                 {
                     inspector_logFilePath: logFile,
                 },
-                `inspection_${logFile}_${Date.now()}`
+                thread_id
             );
 
             const record = {
                 logFileName: logFile,
                 timestamp: new Date().toISOString(),
-                ...response.inspector_inspectionResult
+                ...response.inspector_inspectionResult["0"]
             };
 
-            allInspectionResults.push(record);
+            agentPerformancesLog.push(record);
             console.log(`[${inspector.agentId}][✅] >> Finished inspecting ${logFile}`);
-
         } catch (error) {
             console.error(`[${inspector.agentId}][❌] >> Failed to inspect ${logFile}:`, error);
         }
     }
 
-    if (allInspectionResults.length > 0) {
-        await inspector.writeInspectionToFile(allInspectionResults, 'log_inspections.json');
-        console.log(`[${inspector.agentId}][💾] >> All inspections saved to log_inspections.json`);
+    // SYSTEM HEALTH LOGS
+    const response = await inspectionWorkflow.execute(
+        {
+            inspector_logFilePath: undefined,
+        },
+        thread_id
+    );
+
+    const totalInspectionsLog = {
+        agent_performance_matrix: agentPerformancesLog,
+        system_health: response.inspector_inspectionResult
     }
+
+    FileHelper.writeFile(
+        process.cwd(),
+        'total_inspections.json', 
+        totalInspectionsLog
+    );
+    console.log(`[${inspector.agentId}][💾] >> All inspections saved to log_inspections.json`);
 }
 
-logInspection();
+analyzingAgentPerformances();

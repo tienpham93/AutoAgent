@@ -31,7 +31,7 @@ export class Architect extends BaseAgent {
         try {
             parsedResult = JSON.parse(cleanJson);
         } catch (e) {
-            console.error(`[${this.agentId}][🚁] >> JSON Parse Error:`, cleanJson);
+            console.error(`[${this.agentId}][🏗️] >> JSON Parse Error:`, cleanJson);
             throw e;
         }
 

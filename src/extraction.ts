@@ -14,7 +14,7 @@ import { CommonHelper } from './Utils/CommonHelper';
 import { TerminalLogger } from './Utils/TerminalLogger';
 import { GraphInstance } from './Services/GraphService/GraphInstance';
 
-console.log(`[🧵🧵🧵] >> 🚁 Start Extracting process`);
+console.log(`[🧵🧵🧵] >> 🏗️ Start Extracting process`);
 TerminalLogger.initialize("full_extraction");
 
 const buildExtractionWorkflow = (architect: Architect) => {
@@ -64,13 +64,13 @@ async function main() {
                 thread_id
             )
             listTestCase = response.architect_extractedTestcases as [TestCase];
-            console.log(`[${architect.agentId}][🚁] >> ✅ Test cases Loaded successfully:\n${JSON.stringify(listTestCase, null, 2)}`);
+            console.log(`[${architect.agentId}][🏗️] >> ✅ Test cases Loaded successfully:\n${JSON.stringify(listTestCase, null, 2)}`);
             
             listAllTestCases.push(...listTestCase);
             // DELAY to Cool down after the heavy "Parse" operation
             await CommonHelper.sleep(5000);
         } catch (error) {
-            console.error(`[${architect.agentId}][🚁] >> ❌ Failed to prase "${file}":`, error);
+            console.error(`[${architect.agentId}][🏗️] >> ❌ Failed to prase "${file}":`, error);
             return;
         } 
     };
