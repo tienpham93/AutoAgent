@@ -2,246 +2,126 @@
 
 An agentic automation framework powered by **LangChain**, **LangGraph**, and **Playwright**. This project utilizes four specialized LLM Agents to transform natural language test cases into executed actions, recorded artifacts, verified results, and system health audits.
 
-## 🏗️ Diagram
-````mermaid
-flowchart LR
-    %% Styles
-    classDef agent fill:#2d3436,stroke:#fff,stroke-width:2px,color:#fff,rx:5px,ry:5px;
-    classDef artifact fill:#ffeaa7,stroke:#fdcb6e,stroke-width:2px,color:#2d3436,stroke-dasharray: 5 5;
-    classDef external fill:#74b9ff,stroke:#0984e3,stroke-width:2px,color:#fff;
-    classDef report fill:#55efc4,stroke:#00b894,stroke-width:2px,color:#2d3436;
-
-    subgraph Inputs ["1. Input Phase"]
-        direction TB
-        RawTest[📄 Raw Test Case<br/>Text/Markdown]
-    end
-
-    subgraph Execution ["2. Execution Phase"]
-        direction TB
-        Architect(📄 Architect Agent):::agent
-        JsonSteps[Testcase.json]:::artifact
-        AutoAgent(🦾 AutoBot Agent):::agent
-        Browser[🌐 Playwright Browser]:::external
-    end
-
-    subgraph Input ["Page Material"]
-        ElementTree(🌳 Element Tree):::artifact
-        Screenshot(📷 Screenshot):::artifact
-        PageKnowledge(📖 Page knowledge):::artifact
-    end
-
-    subgraph Artifacts ["3. Artifacts"]
-        direction TB
-        Video[📹 Video.webm]:::artifact
-        Logs[📝 Execution Logs]:::artifact
-        TermialLogs[💻 Termial Log]:::artifact
-    end
-
-    subgraph Analysis ["4. AI Analysis Phase"]
-        direction TB
-        Evaluator(🕵️ Evaluator Agent):::agent
-        Inspector(👮 Inspector Agent):::agent
-    end
-
-    subgraph Output ["5. Reporting"]
-        Allure(📊 Allure Report):::report
-    end
-
-    %% Connections
-    RawTest --> Architect
-    Architect -->|Parses| JsonSteps
-
-    JsonSteps --> AutoAgent
-    ElementTree --> AutoAgent
-    Screenshot --> AutoAgent
-    PageKnowledge --> AutoAgent
-
-    AutoAgent -->|Playwright Script| Browser
-    Browser -->|Error| AutoAgent
-
-    AutoAgent -->|Generates| Video
-    AutoAgent -->|Generates| Logs
-    AutoAgent -->|Generates| TermialLogs
-
-    Video --> Evaluator
-    Logs --> Evaluator
-    TermialLogs --> Inspector
-
-    Evaluator -->|Evaluated Test Results| Allure
-    Inspector -->|Agent & System Performance| Allure
-````
-
 ## 🔄 The 4-Agent Workflow
 
 1.  **📄 Architect Agent**:
-    *   **Input**: Raw test case descriptions (Text/PDF/Markdown/Json).
-    *   **Action**: Analyzes the intent and requirements using an LLM.
-    *   **Output**: Produces a structured `testcase.json` containing discrete, executable steps.
+    *   **Action**: Analyzes raw test basis (Markdown/Feature files), maps proper `playwright-cli` skills and page knowledges, and extracts them into a structured execution plan.
+    *   **Output**: Produces `extracted_all_testcase.json`.
 
 2.  **🦾 AutoBot Agent**:
-    *   **Input**: `testcase.json`.
-    *   **Action**: Spins up a browser (Playwright), performs the steps, handles dynamic UI changes, and attempts self-healing on errors.
-    *   **Output**: Generates execution artifacts: `video.webm` and `execution_logs.json`.
+    *   **Action**: Consumes the JSON plan, spawns a browser via `playwright-cli`, interprets the **Elements Tree**, and executes steps while handling dynamic UI changes and self-healing.
+    *   **Output**: Execution artifacts: `video.webm`, snapshots, and `execution_logs.json`.
 
 3.  **🕵️ Evaluator Agent**:
-    *   **Input**: `video.webm` and `execution_logs.json`.
-    *   **Action**: Uploads the video to Google Gemini, watches the playback, and compares it against the expected logs to verify logic and visual correctness.
-    *   **Output**: Generates `evaluations.json` for the final report.
+    *   **Action**: Uploads the execution video to Google Gemini (Multimodal), watches the playback, and compares visual evidence against the test requirements.
+    *   **Output**: Generates `evaluations.json`.
 
 4.  **👮 Inspector Agent**:
-    *   **Input**: Raw terminal logs (`full_execution.log`) from the entire run.
-    *   **Action**: Acts as a Site Reliability Engineer (SRE). It scans the logs to detect infrastructure issues (Network Lag, API Quotas), calculates Agent stability scores, and identifies root causes for retries.
-    *   **Output**: Generates `log_inspections.json` (System Health Audit).
-
-## 🌟 Key Features
-
-*   **🧠 Intelligent Automation**
-    *   Unlike traditional frameworks stuck with static Page Object classes and fixed locator queries—which demand significant maintenance effort whenever the UI evolves. **AutoAgent** takes a dynamic approach by equipping real-time automation basis such as the **Elements Tree**, **Page Contexts**, and **Workflow Instructions**, it generates and executes Playwright code instantly. This eliminates the need for brittle selectors and reduces the maintenance burden.
-
-*   **🕸️ Self-Healing Execution**
-    *   Built to withstand UI flakiness. If the `AutoBot Agent` encounters a Playwright error (e.g., `TimeoutError` or `ElementNotFound`), it doesn't just fail.
-    *   It captures the error, re-scans the current **Elements Tree**, diagnoses the root cause, and **regenerates the code** to recover and proceed automatically.
-
-*   **👀 Flexible and Tolerant Assertion**
-    *   Implements the **LLM-as-a-Judge** technique to the **Evaluator Agent**.
-    *   Instead of brittle, exact-match code assertions, the agent acts as a human inspector. It **watches the execution video**, reads the logs, and compares them against the test requirements to grade a **PASS/FAIL**. This allows the test to tolerate minor UI variances (like color changes or text formatting) while strictly enforcing business logic.
+    *   **Action**: Scans all terminal logs (`full_*.log`). It acts as an SRE to detect syntax errors, LLM hallucinations, and infrastructure lag.
+    *   **Output**: Generates `log_inspections.json` (The System Audit).
 
 ***
 
 ## 🛠️ Tech Stack
 
-*   **Language**: TypeScript, Node.js
+*   **Language**: TypeScript, Node.js (v20+)
 *   **AI Orchestration**: LangChain, LangGraph
-*   **LLMs**: Google Gemini, Anthropic Claude
-*   **Automation**: Playwright
+*   **Automation Engine**: `@playwright/cli` & Playwright
+*   **LLMs**: Google Gemini (Pro/Flash), Anthropic Claude 3.5
+*   **Reporting**: Allure Report
 *   **Templating**: Nunjucks (`.njk`)
 
 ## 📂 Project Structure
 
-Based on the actual source code organization:
+Based on the latest organization:
 
 ```plaintext
 src/
-├── Agents/
-│   ├── AutoBot.ts          # Core Execution Loop (Generator/Executor)
-│   ├── BaseAgent.ts        # Shared logic (LLM Client, File Uploads)
-│   ├── Evaluator.ts        # Video Analysis Logic
-│   ├── Architect.ts        # Test Case Parsing Logic
-│   └── Inspector.ts        # Log Analysis & System Auditing
-├── Debug/
-│   ├── Elements/          # Snapshots of Accessibility Trees
-│   └── Debugger.ts        # Script to dry-run
+├── Agents/              # Agent logic (AutoBot, Architect, Evaluator, Inspector, etc.)
 ├── Prompts/
-│   ├── Agents/
-│   │   ├── Persona/       
-│   │   └── Rules/         
-│   └── Pages/
-│       ├── Contexts/     
-│       └── Workflows/     
-├── Report/
-│   └── generate_allure.ts # Report generation logic
-├── Utils/
-│   └── FileHelper.ts      # IO utilities
-├── execution.ts           # Orchestrator for Extraction & Execution
-├── evaluation.ts          # Orchestrator for Evaluation
-└── inspection.ts          # Orchestrator for System Inspection
+│   ├── Agents/          # Agent Personas and general Reasoning Rules
+│   │   ├── Persona/     
+│   │   └── Rules/       
+│   ├── Pages/           # Domain Knowledge
+│   │   ├── Contexts/    # Page object logic & identification
+│   │   └── Workflows/   # Sequential logic & decision trees
+│   └── skills/          # Playwright-cli skill definitions
+│       └── playwright-cli/
+│           └── references/ # Mocking, storage, and session guides
+├── Report/              # Allure report generation logic
+├── Services/            # GraphService & LangGraph definitions
+├── Utils/               # Common helpers & File I/O
+├── execution.ts         # Worker logic for individual test execution
+├── extraction.ts        # Orchestrator for test case parsing
+├── evaluation.ts        # Orchestrator for video-based verification
+├── inspection.ts        # Orchestrator for log auditing
+├── runner.ts            # Parallel execution orchestrator (Multi-worker)
+├── settings.ts          # Environment & Path configurations
+├── types.ts             # Global TS Interfaces
+└── constants.ts         # Agent Node & State constants
 ```
 
-## 🚀 Getting Started
+***
 
-### Prerequisites
-*   Node.js (v18+)
-*   **Google Gemini API Key** (Required for `EvaluatorAgent`)
-*   **Anthropic API Key** (Optional for `AutoAgent`/`ArchitectAgent`)
+## 🚀 Getting Started
 
 ### Installation
 
 ```bash
-git clone git@github.com:tienpham93/AutoAgent.git
+# Clone the repository
+git clone git@github.com:tien-pham/AutoAgent.git
+
+# Install dependencies
 yarn install
+
+# Install Playwright browsers and CLI tools
 npx playwright install
 ```
 
-### Configuration (.env)
+### 🏃 Execution Commands
 
-```env
-env/
-├── gemini.env          
-└── claude.env  
-```
+The framework is designed to run in a specific pipeline. You can run individual stages or the full End-to-End flow.
 
-## 🏃 Usage
-
-The process is split into Execution, Evaluation, Inspection, and Reporting.
-
-### 1. Run Extraction & Execution
-This script runs the `ArchitectAgent` to parse tests and immediately triggers the `AutoAgent` to run them.
-```bash
-yarn run test:exec
-```
-*   *Artifacts*: Creates `output/<test_case_name>_<timestamp>/` containing videos and logs.
-
-### 2. Run Evaluation
-Triggers the `EvaluatorAgent` to process the artifacts generated in the previous step.
-```bash
-yarn run test:eval
-```
-
-### 3. Run System Inspection
-Triggers the `InspectorAgent` to analyze the terminal logs for system health and performance metrics.
-```bash
-yarn run test:inspect
-```
-
-### 4. Generate Report
-Compiles the JSON results (Tests + System Audit) into an HTML report.
-```bash
-yarn run test:allure
-```
-
-### ⚡ Run End-to-End
-Execute the entire pipeline (Exec -> Eval -> Inspect -> Report) in one command:
-```bash
-yarn run test:e2e
-```
-
-## 🔬 Way of Working: The Debugger Workflow
-
-Developing reliable AI automation requires understanding exactly what the LLM "sees" and "thinks" 👉 I use the **Debugger script** (`src/Debug/Debugger.ts`) to dry-run scenarios, in order to build robust **Page Contexts** and **Workflow instructions**
-
-### 1. Launch the Debugger
-Start the interactive CLI session. This opens a browser instance and a command prompt.
-```bash
-yarn run debug
-```
-
-### 2. The Development Cycle
-The workflow for adding a new page or refining an existing test step is iterative:
-
-1.  **Experiment (Dry Run)**:
-    Type a natural language command (e.g., `"search for hotels in Tokyo"`).The Agent will generate code and execute it immediately. This tells you if the LLM can handle any scenario steps *without* extra help.
-
-2.  **Inspect (Snapshot)**:
-    If the Agent fails or hallucinates a selector, type:
-    ```bash
-    You: take snapshot
-    ```
-    *   This dumps the current **Accessibility Tree (JSON)** to `src/Debug/Elements/`.
-    *   Open this file to see exactly what structural data the LLM has access to.
-
-3.  **Refine (Context Injection)**:
-
-    Use the snapshot data to build or update your **Nunjucks templates**:
-    *   **Contexts** (`Prompts/Pages/Contexts/*.njk`): Define page objects, keynote when interact with specific component, or giving robust robust element queries
-    *   **Workflows** (`Prompts/Pages/Workflows/*.njk`): Define multi-step logic that helps LLM to navigate better (e.g., "When retry", "when abort", "When test execution complete").
-
-4.  **Handy Tips**:
-
-- You rarely need to write Page Contexts (.njk) or Workflow Instructions from scratch. Instead, use the artifacts from your debug session to bootstrap the process:
-    - Use the `take snapshot` command in the Debugger to get the raw JSON of the page structure.
-    - Paste that JSON and an **existing and similar .njk teample** from your project into Gemini or ChatGPT 
-    - Ask the AI: *"Using this existing file as a template structure, create a new Page Context file for the [New Page Name] based on the selectors found in this JSON snapshot."*
-- This approach ensures your new contexts follow the project's structure perfectly while mapping specific IDs and ARIA labels found during the dry-run.
+| Command | Description |
+| :--- | :--- |
+| `yarn test:extract` | Parses Markdown feature files into `extracted_all_testcase.json`. |
+| `yarn test:run` | Triggers the **Runner** to execute test cases in parallel (configurable workers). |
+| `yarn test:eval` | Sends execution videos to Gemini for visual verification. |
+| `yarn test:inspect` | Audits the `full_*.log` files for agent performance and errors. |
+| `yarn test:allure` | Compiles all JSON results into a searchable Allure Report. |
+| **`yarn test:e2e`** | **Runs the full pipeline (Extract -> Run -> Eval -> Inspect -> Allure).** |
+| `yarn test:cleanup` | Removes the `output/` folder and old artifacts. |
 
 ***
-## 🏅 Author: tien-pham 🏅
+
+## 🔬 Way of Working: Manual Debugging with `playwright-cli`
+
+When a test step fails or you are building a new **Page Context**, you should use the manual debugging workflow. This allows you to verify exactly how the `playwright-cli` interacts with the site before committing logic to an AI Agent.
+
+### 1. Manual Exploration
+Launch a manual CLI session to test selectors and commands:
+```bash
+# Open the browser
+yarn pwcli open https://www.agoda.com
+
+# Take a snapshot to see the YAML element tree (and get [ref=eXXX] IDs)
+yarn pwcli snapshot
+
+# Test an interaction using a ref found in the snapshot
+yarn pwcli click e144
+yarn pwcli fill e144 "Hong Kong"
+```
+
+### 2. Building Page Knowledges (.njk)
+If the manual `click` or `fill` works, use that structural information to update your templates:
+1.  **Contexts** (`Prompts/Pages/Contexts/`): Define component names and mapping logic using the stable ARIA names/roles found in your manual `snapshot`.
+2.  **Workflows** (`Prompts/Pages/Workflows/`): Define "Decision Logic" (when to RETRY, when to SKIP) based on the visual behavior you observed during manual testing.
+
+### 3. Rapid Bootstrapping
+You don't need to write `.njk` files from scratch:
+*   Run `yarn pwcli snapshot --filename=temp.yml`.
+*   Copy the content of `temp.yml` and a similar existing `.njk` file.
+*   Ask Gemini/ChatGPT: *"Using the provided YAML structure, generate a new Page Context template following this NJK format."*
+
+***
+## 🏅 Author: **tien-pham** 🏅
