@@ -4,11 +4,11 @@ An agentic automation framework powered by **LangChain**, **LangGraph**, and **P
 
 ## 🔄 The 4-Agent Workflow
 
-1.  **📄 Architect Agent**:
+1.  **🧠 Architect Agent**:
     *   **Action**: Analyzes raw test basis (Markdown/Feature files), maps proper `playwright-cli` skills and page knowledges, and extracts them into a structured execution plan.
     *   **Output**: Produces `extracted_all_testcase.json`.
 
-2.  **🦾 AutoBot Agent**:
+2.  **🤖 AutoBot Agent**:
     *   **Action**: Consumes the JSON plan, spawns a browser via `playwright-cli`, interprets the **Elements Tree**, and executes steps while handling dynamic UI changes and self-healing.
     *   **Output**: Execution artifacts: `video.webm`, snapshots, and `execution_logs.json`.
 
@@ -20,7 +20,79 @@ An agentic automation framework powered by **LangChain**, **LangGraph**, and **P
     *   **Action**: Scans all terminal logs (`full_*.log`). It acts as an SRE to detect syntax errors, LLM hallucinations, and infrastructure lag.
     *   **Output**: Generates `log_inspections.json` (The System Audit).
 
-***
+
+## 🏗️ Diagram
+````mermaid
+flowchart LR
+    %% Styles
+    classDef agent fill:#2d3436,stroke:#fff,stroke-width:2px,color:#fff,rx:5px,ry:5px;
+    classDef artifact fill:#ffeaa7,stroke:#fdcb6e,stroke-width:2px,color:#2d3436,stroke-dasharray: 6 6;
+    classDef external fill:#74b9ff,stroke:#0984e3,stroke-width:2px,color:#ffffff;
+    classDef report fill:#55efc4,stroke:#00b894,stroke-width:2px,color:#2d3436;
+
+    subgraph Extraction ["🏗️ EXTRACTION 🏗️"]
+        Architect(🧠 Architect Agent):::agent
+        direction TB
+        RawTest[📄 Raw Test Case<br/>Text/Markdown]
+        PageCatalog[📖 Page Catalog<br/>Contexts & workflow njk Paths]
+        PlaywrightSkillsCatalog[🎭 Playwright-cli Catalog<br/>Referenced cli scripts Paths]
+    end
+
+    subgraph Execution ["🦾 EXECUTION 🦾"]
+        direction TB
+        extractedTestCaseJson[extracted_all_testcase.json]:::artifact
+        AutoAgent(🤖 AutoBot Agent):::agent
+        Browser[🌐 Playwright Browser]:::external
+        PageMaterial(🌳 Element snapshot <br/> 📷 Screenshot <br/> 💥 Errors):::artifact
+    end
+    
+    subgraph Evaluation ["🔬 EVALUATION 🔬"]
+        direction TB
+        subgraph Output ["📂 Output"]
+            direction TB
+            Video[📹 Video.webm]:::artifact
+            Logs[📝 Execution Logs]:::artifact
+        end
+        Evaluator(🕵️ Evaluator Agent):::agent
+        EvaluationJson[evaluations.json]:::artifact
+    end
+
+    subgraph Inspection ["🔍 INSPECTION 🔍"]
+        Inspector(👮 Inspector Agent):::agent
+        direction TB
+        ExtractionTermialLogs[Extraction Termial Logs]:::artifact       
+        ExecutionTermialLogs[Execution Termial Logs]:::artifact
+        EvaluationTermialLogs[Evaluation Termial Logs]:::artifact
+    end
+    
+    %% Connections
+    RawTest --> Architect
+    PageCatalog --> Architect
+    PlaywrightSkillsCatalog --> Architect
+
+    Architect --> |Parses and Mapping| extractedTestCaseJson
+    Architect --> |Capture Termial Logs| ExtractionTermialLogs
+
+    extractedTestCaseJson --> AutoAgent
+
+    AutoAgent --> |Playwright cli commands| Browser
+    Browser --> |capture| PageMaterial
+    PageMaterial --> |Return| AutoAgent
+
+    AutoAgent -->|Record| Video
+    AutoAgent -->|Record| Logs
+    AutoAgent -->|Capture Termial Logs| ExecutionTermialLogs
+
+    Evaluator -->|Generate| EvaluationJson
+    Evaluator -->|Capture Termial Logs| EvaluationTermialLogs
+
+    Video --> Evaluator
+    Logs --> Evaluator
+
+    ExtractionTermialLogs --> Inspector
+    ExecutionTermialLogs --> Inspector
+    EvaluationTermialLogs --> Inspector
+````
 
 ## 🛠️ Tech Stack
 
@@ -84,10 +156,10 @@ The framework is designed to run in a specific pipeline. You can run individual 
 
 | Command | Description |
 | :--- | :--- |
-| `yarn test:extract` | Parses Markdown feature files into `extracted_all_testcase.json`. |
+| `yarn test:extract` | Run extraction.ts to parses Markdown feature files into `extracted_all_testcase.json`. |
 | `yarn test:run` | Triggers the **Runner** to execute test cases in parallel (configurable workers). |
-| `yarn test:eval` | Sends execution videos to Gemini for visual verification. |
-| `yarn test:inspect` | Audits the `full_*.log` files for agent performance and errors. |
+| `yarn test:eval` | Run evaluation.ts that sends execution videos to Gemini for visual verification. |
+| `yarn test:inspect` | Audits the `full_*.log` files for agent performance errors. |
 | `yarn test:allure` | Compiles all JSON results into a searchable Allure Report. |
 | **`yarn test:e2e`** | **Runs the full pipeline (Extract -> Run -> Eval -> Inspect -> Allure).** |
 | `yarn test:cleanup` | Removes the `output/` folder and old artifacts. |
