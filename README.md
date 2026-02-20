@@ -54,7 +54,6 @@ flowchart LR
             Logs[📝 Execution Logs]:::artifact
         end
         Evaluator(🕵️ Evaluator Agent):::agent
-        EvaluationJson[evaluations.json]:::artifact
     end
 
     subgraph Inspection ["🔍 INSPECTION 🔍"]
@@ -63,6 +62,12 @@ flowchart LR
         ExtractionTermialLogs[Extraction Termial Logs]:::artifact       
         ExecutionTermialLogs[Execution Termial Logs]:::artifact
         EvaluationTermialLogs[Evaluation Termial Logs]:::artifact
+    end
+
+    subgraph Reporting ["📈 REPORTING 📈"]
+        EvaluationJson[evaluations.json]:::artifact
+        InspectionJson[total_inspections.json]:::artifact
+        Allure(📊 Allure Report):::report
     end
     
     %% Connections
@@ -92,6 +97,12 @@ flowchart LR
     ExtractionTermialLogs --> Inspector
     ExecutionTermialLogs --> Inspector
     EvaluationTermialLogs --> Inspector
+    Inspector --> InspectionJson
+
+    EvaluationJson --> Allure
+    InspectionJson --> Allure
+    Video --> Allure
+    Logs --> Allure
 ````
 
 ## 🛠️ Tech Stack
