@@ -43,7 +43,7 @@ async function analyzingAgentPerformances() {
         file.startsWith('full_') && file.endsWith('.log')
     );
 
-    console.log(`[${inspector.agentId}][🔍] >> Found ${logFiles.length} logs to inspect: ${logFiles.join(', ')}`);
+    console.log(`[${inspector.agentId}][👮] >> Found ${logFiles.length} logs to inspect: ${logFiles.join(', ')}`);
 
     const agentPerformancesLog: any[] = [];
 
@@ -67,9 +67,9 @@ async function analyzingAgentPerformances() {
             };
 
             agentPerformancesLog.push(record);
-            console.log(`[${inspector.agentId}][✅] >> Finished inspecting ${logFile}`);
+            console.log(`[${inspector.agentId}][👮] >> ✅ Finished inspecting ${logFile}`);
         } catch (error) {
-            console.error(`[${inspector.agentId}][❌] >> Failed to inspect ${logFile}:`, error);
+            console.error(`[${inspector.agentId}][👮] >> ❌ Failed to inspect ${logFile}:`, error);
         }
     }
 
@@ -91,7 +91,7 @@ async function analyzingAgentPerformances() {
         'total_inspections.json', 
         totalInspectionsLog
     );
-    console.log(`[${inspector.agentId}][💾] >> All inspections saved to log_inspections.json`);
+    console.log(`[${inspector.agentId}][👮] >> 💾 All inspections saved to log_inspections.json`);
 }
 
 analyzingAgentPerformances();

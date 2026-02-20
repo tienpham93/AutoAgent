@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.2] - 2026-02-20
+
+### 🏗️ Update Diagram:
+*   **Update Diagram:** Update the agentic workflow diagram.
+
 ## [1.1.1] - 2026-02-19
 
 ### 🛠️ Upgrade: patch retry logic to handle missing video records
