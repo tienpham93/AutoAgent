@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0] - 2026-04-07
+
+### 🚀 Major Upgrade: Migrated to BunJS
+*   **Performance:** Replaced `ts-node` and `yarn` entirely with `bun`. All test orchestration, scripts, and runtime operations now run natively on the Bun javascript runtime, gaining significant startup and compilation improvements.
+*   **Dependency Management:** Cleaned up `yarn.lock` in favor of `bun.lockb` for faster package resolution.
+*   **Documentation:** Aligned `README.md` to reflect `bun run` specific pipeline stages and installation procedures.
+
 ## [1.1.2] - 2026-02-20
 
 ### 🏗️ Update Diagram:

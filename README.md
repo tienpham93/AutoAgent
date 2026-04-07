@@ -155,10 +155,10 @@ src/
 git clone git@github.com:tien-pham/AutoAgent.git
 
 # Install dependencies
-yarn install
+bun install
 
 # Install Playwright browsers and CLI tools
-npx playwright install
+bunx playwright install
 ```
 
 ### 🏃 Execution Commands
@@ -167,13 +167,13 @@ The framework is designed to run in a specific pipeline. You can run individual 
 
 | Command | Description |
 | :--- | :--- |
-| `yarn test:extract` | Run extraction.ts to parses Markdown feature files into `extracted_all_testcase.json`. |
-| `yarn test:run` | Triggers the **Runner** to execute test cases in parallel (configurable workers). |
-| `yarn test:eval` | Run evaluation.ts that sends execution videos to Gemini for visual verification. |
-| `yarn test:inspect` | Audits the `full_*.log` files for agent performance errors. |
-| `yarn test:allure` | Compiles all JSON results into a searchable Allure Report. |
-| **`yarn test:e2e`** | **Runs the full pipeline (Extract -> Run -> Eval -> Inspect -> Allure).** |
-| `yarn test:cleanup` | Removes the `output/` folder and old artifacts. |
+| `bun run test:extract` | Run extraction.ts to parses Markdown feature files into `extracted_all_testcase.json`. |
+| `bun run test:run` | Triggers the **Runner** to execute test cases in parallel (configurable workers). |
+| `bun run test:eval` | Run evaluation.ts that sends execution videos to Gemini for visual verification. |
+| `bun run test:inspect` | Audits the `full_*.log` files for agent performance errors. |
+| `bun run test:allure` | Compiles all JSON results into a searchable Allure Report. |
+| **`bun run test:e2e`** | **Runs the full pipeline (Extract -> Run -> Eval -> Inspect -> Allure).** |
+| `bun run test:cleanup` | Removes the `output/` folder and old artifacts. |
 
 ***
 
@@ -185,14 +185,14 @@ When a test step fails or you are building a new **Page Context**, you should us
 Launch a manual CLI session to test selectors and commands:
 ```bash
 # Open the browser
-yarn pwcli open https://www.agoda.com
+bun run pwcli open https://www.agoda.com
 
 # Take a snapshot to see the YAML element tree (and get [ref=eXXX] IDs)
-yarn pwcli snapshot
+bun run pwcli snapshot
 
 # Test an interaction using a ref found in the snapshot
-yarn pwcli click e144
-yarn pwcli fill e144 "Hong Kong"
+bun run pwcli click e144
+bun run pwcli fill e144 "Hong Kong"
 ```
 
 ### 2. Building Page Knowledges (.njk)
@@ -202,7 +202,7 @@ If the manual `click` or `fill` works, use that structural information to update
 
 ### 3. Rapid Bootstrapping
 You don't need to write `.njk` files from scratch:
-*   Run `yarn pwcli snapshot --filename=temp.yml`.
+*   Run `bun run pwcli snapshot --filename=temp.yml`.
 *   Copy the content of `temp.yml` and a similar existing `.njk` file.
 *   Ask Gemini/ChatGPT: *"Using the provided YAML structure, generate a new Page Context template following this NJK format."*
 
