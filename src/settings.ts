@@ -20,7 +20,7 @@ export const CLAUDE_AUTO_AGENT_KEY = process.env.CLAUDE_AUTO_AGENT_KEY;
 export const CLAUDE_AUTO_AGENT_MODEL = process.env.CLAUDE_AUTO_AGENT_MODEL || "claude-haiku-4-5-20251001";
 
 // Declare Directories
-export const TESTS_DIR = rootDir + '/src/__Tests__';
+export const TESTS_DIR = rootDir + '/__Tests__';
 export const OUTPUT_DIR = rootDir + '/output';
 export const REPORTS_DIR = rootDir + 'src/Report';
 export const PROMPTS_DIR = rootDir + '/src/Prompts';
